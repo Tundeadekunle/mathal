@@ -1,0 +1,220 @@
+// Prisma Schema for Mathal International Schools
+// Primary and Secondary sections, Student registration, Attendance, CA/Exam Scores, CBT Exams, and Term Reports
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum Section {
+  PRIMARY
+  SECONDARY
+  BOTH
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum StudentStatus {
+  ACTIVE
+  GRADUATED
+  TRANSFERRED
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         Role      @default(STUDENT)
+  phone        String?
+  avatarUrl    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  student      Student?
+  teacher      Teacher?
+}
+
+model Teacher {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staffId          String   @unique
+  title            String?  // Mr., Mrs., Dr.
+  qualification    String?
+  assignedSection  Section  @default(BOTH)
+  assignedClasses  String?  // Comma-separated or JSON e.g. "Basic 4,Basic 5"
+  assignedSubjects String?  // Comma-separated e.g. "Mathematics,English Language"
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Student {
+  id              String         @id @default(cuid())
+  userId          String?        @unique
+  user            User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  admissionNo     String         @unique // e.g., MIS/PRI/2025/001 or MIS/SEC/2025/012
+  firstName       String
+  lastName        String
+  otherName       String?
+  section         Section        // PRIMARY or SECONDARY
+  classLevel      String         // e.g., "Basic 4", "JSS 2", "SSS 3"
+  arm             String         // e.g., "Gold", "Diamond", "A", "B"
+  gender          Gender
+  dateOfBirth     DateTime?
+  bloodGroup      String?        // e.g., "O+", "A+"
+  address         String?
+  passportPhoto   String?
+  guardianName    String
+  guardianPhone   String
+  guardianEmail   String?
+  guardianAddress String?
+  status          StudentStatus  @default(ACTIVE)
+  enrollDate      DateTime       @default(now())
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  attendances     Attendance[]
+  scoreRecords    ScoreRecord[]
+  termReports     TermReport[]
+  submissions     ExamSubmission[]
+}
+
+model Attendance {
+  id         String           @id @default(cuid())
+  studentId  String
+  student    Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classLevel String
+  arm        String
+  date       DateTime
+  status     AttendanceStatus @default(PRESENT)
+  remarks    String?
+  markedBy   String?          // Teacher or Admin who marked it
+  createdAt  DateTime         @default(now())
+
+  @@unique([studentId, date])
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  name        String   // e.g. "Mathematics"
+  code        String   @unique // e.g. "MTH"
+  section     Section  @default(BOTH)
+  description String?
+  createdAt   DateTime @default(now())
+
+  scoreRecords ScoreRecord[]
+}
+
+model ScoreRecord {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  session   String   // e.g. "2024/2025"
+  term      String   // e.g. "1st Term", "2nd Term", "3rd Term"
+  ca1       Float    @default(0) // Max 20
+  ca2       Float    @default(0) // Max 20
+  exam      Float    @default(0) // Max 60
+  total     Float    @default(0) // ca1 + ca2 + exam (Max 100)
+  grade     String   @default("F") // A, B, C, D, E, F
+  remark    String   @default("Fail") // Excellent, Very Good, Good, Pass, Fail
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, subjectId, session, term])
+}
+
+model TermReport {
+  id                  String   @id @default(cuid())
+  studentId           String
+  student             Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  session             String   // e.g. "2024/2025"
+  term                String   // e.g. "1st Term"
+  classLevel          String
+  arm                 String
+  totalScore          Float    @default(0)
+  averageScore        Float    @default(0)
+  position            Int?
+  totalStudents       Int?
+  timesSchoolOpened   Int      @default(120)
+  timesPresent        Int      @default(118)
+  timesAbsent         Int      @default(2)
+  teacherRemark       String?
+  principalRemark     String?
+  nextTermBegins      String?
+  affectiveRating     String?  // JSON string
+  psychomotorRating   String?  // JSON string
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([studentId, session, term])
+}
+
+model CbtExam {
+  id              String           @id @default(cuid())
+  title           String
+  description     String?
+  section         Section
+  classLevel      String
+  subject         String
+  durationMinutes Int              @default(30)
+  totalMarks      Int              @default(100)
+  passPercentage  Int              @default(50)
+  isActive        Boolean          @default(true)
+  createdBy       String
+  createdAt       DateTime         @default(now())
+
+  questions       CbtQuestion[]
+  submissions     ExamSubmission[]
+}
+
+model CbtQuestion {
+  id             String   @id @default(cuid())
+  examId         String
+  exam           CbtExam  @relation(fields: [examId], references: [id], onDelete: Cascade)
+  questionNumber Int
+  questionText   String
+  optionA        String
+  optionB        String
+  optionC        String
+  optionD        String
+  correctAnswer  String   // "A", "B", "C", "D"
+  marks          Float    @default(5)
+  explanation    String?
+}
+
+model ExamSubmission {
+  id            String   @id @default(cuid())
+  examId        String
+  exam          CbtExam  @relation(fields: [examId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  score         Float
+  totalPossible Float
+  percentage    Float
+  passed        Boolean
+  submittedAt   DateTime @default(now())
+  answersJson   String   // JSON string of answers e.g. {"1":"B", "2":"A"}
+}

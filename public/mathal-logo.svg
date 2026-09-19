@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#064e3b" />
+      <stop offset="50%" stop-color="#047857" />
+      <stop offset="100%" stop-color="#022c22" />
+    </linearGradient>
+
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="35%" stop-color="#eab308" />
+      <stop offset="70%" stop-color="#ca8a04" />
+      <stop offset="100%" stop-color="#854d0e" />
+    </linearGradient>
+
+    <linearGradient id="goldRibbon" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fef9c3" />
+      <stop offset="50%" stop-color="#facc15" />
+      <stop offset="100%" stop-color="#b45309" />
+    </linearGradient>
+
+    <filter id="dropShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- Outer Ring with Gold Border -->
+  <circle cx="250" cy="250" r="235" fill="none" stroke="url(#goldGrad)" stroke-width="8" filter="url(#dropShadow)" />
+  <circle cx="250" cy="250" r="222" fill="#022c22" stroke="url(#goldGrad)" stroke-width="2.5" />
+
+  <!-- Circular Text Path -->
+  <path id="textPathTop" d="M 65 250 A 185 185 0 0 1 435 250" fill="none" />
+  <text font-family="'Cinzel', 'Georgia', serif" font-size="24" font-weight="bold" fill="#fef08a" letter-spacing="4">
+    <textPath href="#textPathTop" startOffset="50%" text-anchor="middle">
+      MATHAL INTERNATIONAL SCHOOLS
+    </textPath>
+  </text>
+
+  <!-- Stars on Ring -->
+  <g fill="url(#goldGrad)">
+    <polygon points="55,250 59,258 68,259 61,265 63,274 55,269 47,274 49,265 42,259 51,258" transform="scale(0.8) translate(15, 60)" />
+    <polygon points="445,250 449,258 458,259 451,265 453,274 445,269 437,274 439,265 432,259 441,258" transform="scale(0.8) translate(105, 60)" />
+  </g>
+
+  <!-- Main Shield -->
+  <path d="M 130 140 
+           Q 250 120 370 140 
+           Q 375 270 250 360 
+           Q 125 270 130 140 Z" 
+        fill="url(#shieldGrad)" 
+        stroke="url(#goldGrad)" 
+        stroke-width="7" 
+        filter="url(#dropShadow)" />
+
+  <path d="M 145 152 
+           Q 250 135 355 152 
+           Q 360 262 250 342 
+           Q 140 262 145 152 Z" 
+        fill="none" 
+        stroke="#fde047" 
+        stroke-width="1.8" 
+        stroke-dasharray="6,4" 
+        opacity="0.85" />
+
+  <!-- Laurel Wreath Leaves (Left) -->
+  <g fill="url(#goldGrad)" opacity="0.95">
+    <path d="M 175 295 C 160 270 155 235 168 200 C 165 215 168 230 178 245 Z" />
+    <path d="M 185 270 C 170 250 168 220 180 190 C 178 205 182 220 190 230 Z" />
+    <path d="M 195 240 C 185 220 185 195 200 175 C 196 190 200 205 205 215 Z" />
+  </g>
+
+  <!-- Laurel Wreath Leaves (Right) -->
+  <g fill="url(#goldGrad)" opacity="0.95">
+    <path d="M 325 295 C 340 270 345 235 332 200 C 335 215 332 230 322 245 Z" />
+    <path d="M 315 270 C 330 250 332 220 320 190 C 322 205 318 220 310 230 Z" />
+    <path d="M 305 240 C 315 220 315 195 300 175 C 304 190 300 205 295 215 Z" />
+  </g>
+
+  <!-- Torch of Wisdom / Enlightenment -->
+  <!-- Flame -->
+  <path d="M 250 150 
+           C 240 170 235 185 242 195 
+           C 245 190 250 188 250 188 
+           C 250 188 255 190 258 195 
+           C 265 185 260 170 250 150 Z" 
+        fill="#f97316" />
+  <path d="M 250 162 
+           C 245 174 242 184 246 191 
+           C 248 188 250 186 250 186 
+           C 250 186 252 188 254 191 
+           C 258 184 255 174 250 162 Z" 
+        fill="#fef08a" />
+
+  <!-- Torch Handle -->
+  <path d="M 242 196 L 258 196 L 254 225 L 246 225 Z" fill="url(#goldGrad)" stroke="#78350f" stroke-width="1" />
+
+  <!-- Open Book of Knowledge -->
+  <!-- Left Page -->
+  <path d="M 250 248 
+           C 225 240 195 242 175 250 
+           L 175 292 
+           C 195 284 225 282 250 290 Z" 
+        fill="#ffffff" 
+        stroke="#cbd5e1" 
+        stroke-width="1.5" />
+  <!-- Left Page Lines -->
+  <line x1="185" y1="258" x2="240" y2="252" stroke="#64748b" stroke-width="2" stroke-linecap="round" />
+  <line x1="185" y1="267" x2="240" y2="261" stroke="#64748b" stroke-width="2" stroke-linecap="round" />
+  <line x1="185" y1="276" x2="235" y2="270" stroke="#64748b" stroke-width="2" stroke-linecap="round" />
+
+  <!-- Right Page -->
+  <path d="M 250 248 
+           C 275 240 305 242 325 250 
+           L 325 292 
+           C 305 284 275 282 250 290 Z" 
+        fill="#f8fafc" 
+        stroke="#cbd5e1" 
+        stroke-width="1.5" />
+  <!-- Right Page Lines -->
+  <line x1="260" y1="252" x2="315" y2="258" stroke="#64748b" stroke-width="2" stroke-linecap="round" />
+  <line x1="260" y1="261" x2="315" y2="267" stroke="#64748b" stroke-width="2" stroke-linecap="round" />
+  <line x1="265" y1="270" x2="315" y2="276" stroke="#64748b" stroke-width="2" stroke-linecap="round" />
+
+  <!-- Book Spine Center -->
+  <path d="M 248 248 L 252 248 L 252 292 L 248 292 Z" fill="url(#goldGrad)" />
+
+  <!-- Lower Ribbon / Banner -->
+  <g filter="url(#dropShadow)">
+    <path d="M 110 395 
+             L 155 365 
+             L 155 405 
+             L 110 435 Z" 
+          fill="#92400e" />
+    <path d="M 390 395 
+             L 345 365 
+             L 345 405 
+             L 390 435 Z" 
+          fill="#92400e" />
+    
+    <path d="M 140 375 
+             Q 250 355 360 375 
+             L 350 420 
+             Q 250 395 150 420 Z" 
+          fill="url(#goldRibbon)" 
+          stroke="#78350f" 
+          stroke-width="2" />
+    
+    <text x="250" y="398" 
+          font-family="'Cinzel', 'Georgia', serif" 
+          font-size="19" 
+          font-weight="900" 
+          fill="#064e3b" 
+          text-anchor="middle" 
+          letter-spacing="2">
+      KNOWLEDGE IS LIGHT
+    </text>
+  </g>
+
+  <!-- Bottom Subtitle / Section -->
+  <path id="textPathBottom" d="M 115 320 A 185 185 0 0 0 385 320" fill="none" />
+  <text font-family="'Cinzel', 'Arial', sans-serif" font-size="14" font-weight="bold" fill="#fde047" letter-spacing="3">
+    <textPath href="#textPathBottom" startOffset="50%" text-anchor="middle">
+      PRIMARY &amp; SECONDARY
+    </textPath>
+  </text>
+</svg>
