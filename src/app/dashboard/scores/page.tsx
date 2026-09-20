@@ -560,46 +560,51 @@ export default function ScoresPage() {
       </div>
 
       {/* Information Strip */}
-      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-emerald-900">
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 text-xs text-emerald-900">
         <div className="flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-emerald-700" />
-          <span>
+          <BookOpen className="w-4 h-4 text-emerald-700 flex-shrink-0" />
+          <span className="truncate">
             Recording: <strong>{currentSubject?.name}</strong> &bull; {classLevel} &bull; {term}, {session}
           </span>
         </div>
-        <div className="flex items-center gap-4">
-          <span>
-            Formula: <strong>CA 1 (20) + CA 2 (20) + Exam (60) = Total (100)</strong>
+        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 text-[11px] sm:text-xs">
+          <span className="text-slate-600 sm:text-emerald-900">
+            CA 1 (20) + CA 2 (20) + Exam (60) = 100
           </span>
-          <span className="font-bold bg-emerald-100 px-2.5 py-1 rounded-lg">
-            Class Average: {classAvg}%
+          <span className="font-bold bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-lg">
+            Class Avg: {classAvg}%
           </span>
         </div>
       </div>
 
+      {/* Mobile Horizontal Scroll Hint */}
+      <div className="sm:hidden flex items-center justify-between px-1 text-[11px] text-slate-500">
+        <span>Swipe horizontally to enter CA1, CA2 &amp; Exam &rarr;</span>
+        <span className="text-emerald-700 font-medium">Auto-saves on exit</span>
+      </div>
+
       {/* Scores Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-600">
+        <div className="overflow-x-auto relative">
+          <table className="w-full text-left text-sm text-slate-600 min-w-[760px] md:min-w-full">
             <thead className="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
               <tr>
-                <th className="px-6 py-3.5">Admission No</th>
-                <th className="px-6 py-3.5">Student Name</th>
-                <th className="px-4 py-3.5 text-center">CA 1 (20)</th>
-                <th className="px-4 py-3.5 text-center">CA 2 (20)</th>
-                <th className="px-4 py-3.5 text-center">Exam (60)</th>
-                <th className="px-4 py-3.5 text-center">Total (100)</th>
-                <th className="px-4 py-3.5 text-center">Grade</th>
-                <th className="px-6 py-3.5">Remark</th>
-                <th className="px-4 py-3.5 text-center">DB Status</th>
-                <th className="px-4 py-3.5 text-center">Save</th>
-                <th className="px-6 py-3.5 text-right">Report Card</th>
+                <th className="px-3 sm:px-6 py-3.5 sticky left-0 bg-slate-50 z-20 shadow-[1px_0_0_0_#f1f5f9]">Student</th>
+                <th className="px-3 sm:px-4 py-3.5 text-center">CA 1 (20)</th>
+                <th className="px-3 sm:px-4 py-3.5 text-center">CA 2 (20)</th>
+                <th className="px-3 sm:px-4 py-3.5 text-center">Exam (60)</th>
+                <th className="px-3 sm:px-4 py-3.5 text-center">Total (100)</th>
+                <th className="px-3 sm:px-4 py-3.5 text-center">Grade</th>
+                <th className="px-4 sm:px-6 py-3.5">Remark</th>
+                <th className="px-3 sm:px-4 py-3.5 text-center">DB Status</th>
+                <th className="px-3 sm:px-4 py-3.5 text-center">Save</th>
+                <th className="px-4 sm:px-6 py-3.5 text-right">Report</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {scoreEntries.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="px-6 py-12 text-center">
+                  <td colSpan={10} className="px-6 py-12 text-center">
                     <div className="max-w-md mx-auto space-y-3">
                       <Database className="w-8 h-8 text-slate-300 mx-auto" />
                       <p className="text-slate-600 font-medium text-sm">
@@ -647,15 +652,18 @@ export default function ScoresPage() {
 
                   return (
                     <tr key={entry.studentId} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="px-6 py-3.5 font-mono font-bold text-xs text-emerald-950">
-                        {entry.admissionNo}
-                      </td>
-                      <td className="px-6 py-3.5 font-bold text-slate-900">
-                        {entry.studentName}
+                      {/* Sticky Student Identifier (Name + Admission No) */}
+                      <td className="px-3 sm:px-6 py-3.5 sticky left-0 bg-white z-10 shadow-[1px_0_0_0_#f1f5f9]">
+                        <div className="font-bold text-slate-900 text-xs sm:text-sm whitespace-nowrap">
+                          {entry.studentName}
+                        </div>
+                        <div className="font-mono text-[11px] text-emerald-800 font-medium">
+                          {entry.admissionNo}
+                        </div>
                       </td>
 
                       {/* CA 1 */}
-                      <td className="px-4 py-3.5 text-center">
+                      <td className="px-2 sm:px-4 py-3.5 text-center">
                         <input
                           type="number"
                           min="0"
@@ -670,12 +678,12 @@ export default function ScoresPage() {
                             if (e.key === "Enter") handleSaveRow(entry.studentId);
                           }}
                           placeholder="0"
-                          className="w-16 py-1.5 px-2 text-center text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+                          className="w-14 sm:w-16 py-2 px-1.5 sm:px-2 text-center text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:bg-white"
                         />
                       </td>
 
                       {/* CA 2 */}
-                      <td className="px-4 py-3.5 text-center">
+                      <td className="px-2 sm:px-4 py-3.5 text-center">
                         <input
                           type="number"
                           min="0"
@@ -690,12 +698,12 @@ export default function ScoresPage() {
                             if (e.key === "Enter") handleSaveRow(entry.studentId);
                           }}
                           placeholder="0"
-                          className="w-16 py-1.5 px-2 text-center text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+                          className="w-14 sm:w-16 py-2 px-1.5 sm:px-2 text-center text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:bg-white"
                         />
                       </td>
 
                       {/* Exam */}
-                      <td className="px-4 py-3.5 text-center">
+                      <td className="px-2 sm:px-4 py-3.5 text-center">
                         <input
                           type="number"
                           min="0"
@@ -710,29 +718,29 @@ export default function ScoresPage() {
                             if (e.key === "Enter") handleSaveRow(entry.studentId);
                           }}
                           placeholder="0"
-                          className="w-20 py-1.5 px-2 text-center text-xs font-bold bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+                          className="w-16 sm:w-20 py-2 px-1.5 sm:px-2 text-center text-xs font-bold bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:bg-white"
                         />
                       </td>
 
                       {/* Total */}
-                      <td className="px-4 py-3.5 text-center font-bold text-slate-900 text-sm">
+                      <td className="px-2 sm:px-4 py-3.5 text-center font-bold text-slate-900 text-xs sm:text-sm">
                         {entry.total}
                       </td>
 
                       {/* Grade */}
-                      <td className="px-4 py-3.5 text-center">
-                        <span className={`px-2.5 py-1 rounded-md text-xs ${gradeColor}`}>
+                      <td className="px-2 sm:px-4 py-3.5 text-center">
+                        <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-xs ${gradeColor}`}>
                           {entry.grade}
                         </span>
                       </td>
 
                       {/* Remark */}
-                      <td className="px-6 py-3.5 text-xs font-medium text-slate-700">
+                      <td className="px-3 sm:px-6 py-3.5 text-xs font-medium text-slate-700 whitespace-nowrap">
                         {entry.remark}
                       </td>
 
                       {/* DB Status */}
-                      <td className="px-4 py-3.5 text-center">
+                      <td className="px-2 sm:px-4 py-3.5 text-center whitespace-nowrap">
                         {st === "saving" ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
                             <RefreshCw className="w-3 h-3 animate-spin text-blue-600" />
@@ -762,30 +770,31 @@ export default function ScoresPage() {
                       </td>
 
                       {/* Action */}
-                      <td className="px-4 py-3.5 text-center">
+                      <td className="px-2 sm:px-4 py-3.5 text-center">
                         <button
                           onClick={() => handleSaveRow(entry.studentId)}
                           disabled={st === "saving"}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          className={`inline-flex items-center justify-center gap-1 min-h-[36px] px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                             st === "unsaved"
                               ? "bg-amber-400 hover:bg-amber-300 text-slate-950 shadow-xs"
                               : "bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700"
                           }`}
                           title="Save this score row to Neon DB"
                         >
-                          <Save className="w-3 h-3" />
-                          Save
+                          <Save className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Save</span>
                         </button>
                       </td>
 
                       {/* Report Card link */}
-                      <td className="px-6 py-3.5 text-right">
+                      <td className="px-3 sm:px-6 py-3.5 text-right whitespace-nowrap">
                         <Link
                           href={`/dashboard/results/${entry.studentId}`}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800"
+                          className="inline-flex items-center gap-1 min-h-[36px] text-xs font-bold text-emerald-700 hover:text-emerald-800"
                         >
                           <Award className="w-3.5 h-3.5" />
-                          View Result
+                          <span className="hidden sm:inline">View Result</span>
+                          <span className="sm:hidden">Report</span>
                         </Link>
                       </td>
                     </tr>
@@ -799,27 +808,27 @@ export default function ScoresPage() {
 
       {/* Floating Bottom Action Bar for Unsaved Scores */}
       {hasUnsavedRows && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-slate-950/95 text-white px-5 py-3 rounded-2xl shadow-2xl backdrop-blur-md flex items-center gap-4 border border-slate-800 animate-slide-up">
+        <div className="fixed bottom-4 sm:bottom-6 left-3 right-3 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 z-40 bg-slate-950/95 text-white px-4 sm:px-5 py-3 rounded-2xl shadow-2xl backdrop-blur-md flex items-center justify-between sm:justify-start gap-3 sm:gap-4 border border-slate-800 animate-slide-up">
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
             <span className="text-xs font-medium text-slate-200">
-              <strong>{unsavedCount}</strong> unsaved student score{unsavedCount > 1 ? "s" : ""}
+              <strong>{unsavedCount}</strong> unsaved score{unsavedCount > 1 ? "s" : ""}
             </span>
           </div>
           <button
             onClick={handleSaveAll}
             disabled={isSavingAll}
-            className="px-4 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer disabled:opacity-50"
+            className="px-3.5 sm:px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer disabled:opacity-50 min-h-[40px]"
           >
             {isSavingAll ? (
               <>
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                Saving to Neon DB...
+                <span>Saving...</span>
               </>
             ) : (
               <>
                 <Save className="w-3.5 h-3.5" />
-                Save All to Neon DB
+                <span>Save All</span>
               </>
             )}
           </button>

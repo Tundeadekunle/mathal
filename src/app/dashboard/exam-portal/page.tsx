@@ -11,14 +11,10 @@ import {
 import {
   GraduationCap,
   Clock,
-  CheckCircle2,
   Plus,
   Play,
   Award,
-  BookOpen,
   X,
-  FileCheck2,
-  Sparkles,
 } from "lucide-react";
 
 export default function ExamPortalPage() {
@@ -182,10 +178,10 @@ export default function ExamPortalPage() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200/80 shadow-sm w-fit">
+      <div className="flex items-center gap-1.5 sm:gap-2 bg-white p-1.5 sm:p-2 rounded-xl border border-slate-200/80 shadow-sm w-full sm:w-fit overflow-x-auto">
         <button
           onClick={() => setSectionFilter("ALL")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+          className={`px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex-1 sm:flex-initial text-center ${
             sectionFilter === "ALL"
               ? "bg-emerald-800 text-white shadow-sm"
               : "text-slate-600 hover:bg-slate-100"
@@ -195,7 +191,7 @@ export default function ExamPortalPage() {
         </button>
         <button
           onClick={() => setSectionFilter("PRIMARY")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+          className={`px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex-1 sm:flex-initial text-center ${
             sectionFilter === "PRIMARY"
               ? "bg-amber-600 text-white shadow-sm"
               : "text-slate-600 hover:bg-slate-100"
@@ -205,7 +201,7 @@ export default function ExamPortalPage() {
         </button>
         <button
           onClick={() => setSectionFilter("SECONDARY")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+          className={`px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex-1 sm:flex-initial text-center ${
             sectionFilter === "SECONDARY"
               ? "bg-blue-600 text-white shadow-sm"
               : "text-slate-600 hover:bg-slate-100"
@@ -216,16 +212,16 @@ export default function ExamPortalPage() {
       </div>
 
       {/* Scheduled Exams Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
         {filteredExams.map((exam) => (
           <div
             key={exam.id}
-            className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm flex flex-col justify-between hover:border-emerald-400 transition-all group"
+            className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm flex flex-col justify-between hover:border-emerald-400 transition-all group"
           >
             <div>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between gap-2 mb-3">
                 <span
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold truncate ${
                     exam.section === "PRIMARY"
                       ? "bg-amber-100 text-amber-900"
                       : "bg-blue-100 text-blue-900"
@@ -234,16 +230,16 @@ export default function ExamPortalPage() {
                   {exam.section} &bull; {exam.classLevel}
                 </span>
 
-                <span className="flex items-center gap-1 text-xs font-semibold text-slate-500">
+                <span className="flex items-center gap-1 text-xs font-semibold text-slate-500 flex-shrink-0">
                   <Clock className="w-3.5 h-3.5 text-amber-500" />
-                  {exam.durationMinutes} Minutes
+                  {exam.durationMinutes} Mins
                 </span>
               </div>
 
-              <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-900 transition-colors">
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 group-hover:text-emerald-900 transition-colors">
                 {exam.title}
               </h3>
-              <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+              <p className="mt-1 text-xs text-slate-500 leading-relaxed line-clamp-2">
                 {exam.description}
               </p>
 
@@ -269,14 +265,14 @@ export default function ExamPortalPage() {
               </div>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+            <div className="mt-5 sm:mt-6 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <span className="text-[11px] text-slate-400">
                 Created by: <strong>{exam.createdBy}</strong>
               </span>
 
               <Link
                 href={`/dashboard/exam-portal/${exam.id}/take`}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-xs shadow-md transition-all group-hover:scale-105"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-xs shadow-md transition-all group-hover:scale-105 min-h-[44px]"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
                 {role === "STUDENT" ? "Enter Exam Hall" : "Preview / Take Test"}

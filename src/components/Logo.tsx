@@ -17,16 +17,16 @@ export default function Logo({
   return (
     <div className={`flex items-center gap-3 ${className}`}>
       <div
-        className="relative flex-shrink-0 transition-transform duration-200 hover:scale-105"
+        className="relative flex-shrink-0 transition-transform duration-200 hover:scale-105 rounded-xl overflow-hidden bg-white/95 p-0.5 shadow-sm"
         style={{ width: size, height: size }}
       >
         <Image
-          src="/mathal-logo.svg"
+          src="/mathal-logo.jpg"
           alt="Mathal International Schools Crest"
           width={size}
           height={size}
           priority
-          className="h-full w-full object-contain drop-shadow-md"
+          className="h-full w-full object-contain rounded-lg"
         />
       </div>
 
@@ -37,12 +37,12 @@ export default function Logo({
               variant === "light"
                 ? "text-white"
                 : "text-emerald-950 dark:text-emerald-50"
-            } ${size >= 60 ? "text-xl sm:text-2xl" : "text-base sm:text-lg"}`}
+            } ${size >= 60 ? "text-lg sm:text-2xl" : "text-sm sm:text-base"}`}
           >
             MATHAL
           </span>
           <span
-            className={`text-xs font-semibold tracking-wider uppercase ${
+            className={`text-[10px] sm:text-xs font-semibold tracking-wider uppercase leading-tight ${
               variant === "light"
                 ? "text-amber-300"
                 : "text-emerald-700 dark:text-emerald-400"
@@ -51,7 +51,7 @@ export default function Logo({
             International Schools
           </span>
           <span
-            className={`text-[10px] tracking-widest uppercase font-medium ${
+            className={`hidden sm:block text-[10px] tracking-widest uppercase font-medium ${
               variant === "light"
                 ? "text-emerald-200/80"
                 : "text-slate-500 dark:text-slate-400"

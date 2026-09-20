@@ -302,8 +302,8 @@ export default function TeachersManagementPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative w-full sm:w-80">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3">
+        <div className="relative w-full md:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
@@ -314,7 +314,7 @@ export default function TeachersManagementPage() {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full md:w-auto">
           {/* Section Filter */}
           <select
             value={filterSection}
@@ -340,9 +340,105 @@ export default function TeachersManagementPage() {
         </div>
       </div>
 
-      {/* Teachers Directory Table */}
+      {/* Teachers Directory: Mobile Cards & Desktop Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile View: High Density Cards */}
+        <div className="block md:hidden divide-y divide-slate-100">
+          {loading ? (
+            <div className="p-8 text-center text-slate-400 text-xs">
+              <RefreshCw className="w-4 h-4 animate-spin text-emerald-600 mx-auto mb-2" />
+              Loading faculty records from Neon DB...
+            </div>
+          ) : filteredTeachers.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 text-xs">
+              No teacher records found matching your filters.
+            </div>
+          ) : (
+            filteredTeachers.map((t) => {
+              const hasClasses = t.assignedClasses.length > 0;
+              const hasSubjects = t.assignedSubjects.length > 0;
+
+              return (
+                <div key={t.id} className="p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm">{t.name}</h4>
+                      <div className="text-xs text-slate-400">{t.email}</div>
+                      <div className="font-mono font-bold text-xs text-emerald-950 mt-0.5">
+                        Staff ID: {t.staffId}
+                      </div>
+                    </div>
+
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 whitespace-nowrap">
+                      {t.assignedSection === "BOTH"
+                        ? "Both Wings"
+                        : t.assignedSection === "PRIMARY"
+                        ? "Primary"
+                        : "Secondary"}
+                    </span>
+                  </div>
+
+                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 space-y-2 text-xs">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-semibold mb-1">
+                        Assigned Classes:
+                      </span>
+                      {hasClasses ? (
+                        <div className="flex flex-wrap gap-1">
+                          {t.assignedClasses.map((cls) => (
+                            <span
+                              key={cls}
+                              className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800"
+                            >
+                              {cls}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] font-bold text-amber-700">
+                          Pending Class Allocation
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="pt-1.5 border-t border-slate-200/60">
+                      <span className="text-[10px] text-slate-400 block font-semibold mb-1">
+                        Assigned Subjects:
+                      </span>
+                      {hasSubjects ? (
+                        <div className="flex flex-wrap gap-1">
+                          {t.assignedSubjects.map((sub) => (
+                            <span
+                              key={sub}
+                              className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800"
+                            >
+                              {sub}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-[10px] font-bold text-amber-700">
+                          Pending Subject Allocation
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => openAssignModal(t)}
+                    className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-xs shadow-xs transition-colors min-h-[44px]"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    <span>Assign Classes &amp; Subjects</span>
+                  </button>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop View: Full Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
               <tr>

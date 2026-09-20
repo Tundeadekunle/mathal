@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useAcademic } from "@/lib/academic-context";
 import { dataStore, DemoStudent } from "@/lib/store";
 import {
   PRIMARY_CLASSES,
@@ -13,18 +14,17 @@ import {
   Search,
   Users,
   Award,
-  Filter,
   Check,
   X,
   Camera,
   Upload,
   Trash2,
   RefreshCw,
-  ImageIcon,
 } from "lucide-react";
 import { validateImageFile, compressPassportImage } from "@/lib/image-utils";
 
 export default function StudentsPage() {
+  const { session } = useAcademic();
   const [students, setStudents] = useState<DemoStudent[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSection, setSelectedSection] = useState<"ALL" | "PRIMARY" | "SECONDARY">("ALL");
@@ -295,16 +295,15 @@ export default function StudentsPage() {
           />
         </div>
 
-        {/* Section Filter */}
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-slate-400 hidden sm:inline" />
+        {/* Section & Class Filter */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full md:w-auto">
           <select
             value={selectedSection}
             onChange={(e) => {
               setSelectedSection(e.target.value as any);
               setSelectedClass("ALL");
             }}
-            className="py-2 px-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="py-2 px-3 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
           >
             <option value="ALL">All Wings (Primary &amp; Sec)</option>
             <option value="PRIMARY">Primary Wing</option>
@@ -315,7 +314,7 @@ export default function StudentsPage() {
           <select
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            className="py-2 px-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 max-w-[180px]"
+            className="py-2 px-3 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
           >
             <option value="ALL">All Classes</option>
             {(selectedSection === "PRIMARY"
@@ -332,21 +331,125 @@ export default function StudentsPage() {
         </div>
       </div>
 
-      {/* Students Table */}
+      {/* Students Table & Mobile Cards */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-emerald-700" />
-            <h3 className="font-bold text-slate-800 text-sm">
+            <h3 className="font-bold text-slate-800 text-xs sm:text-sm">
               Enrolled Roster ({filteredStudents.length} Students)
             </h3>
           </div>
-          <span className="text-xs text-slate-400">
-            2024/2025 Session Active
+          <span className="text-[11px] sm:text-xs text-slate-400">
+            {session} Active
           </span>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Mobile View: High Density Cards */}
+        <div className="block md:hidden divide-y divide-slate-100">
+          {filteredStudents.length === 0 ? (
+            <div className="p-8 text-center text-slate-400 text-xs">
+              No pupils or students found matching your criteria.
+            </div>
+          ) : (
+            filteredStudents.map((s) => (
+              <div key={s.id} className="p-4 space-y-3 hover:bg-slate-50/50 transition-colors">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => openPassportModal(s)}
+                      className="relative flex-shrink-0 cursor-pointer"
+                      title="Click to view or upload passport"
+                    >
+                      {s.passportPhoto ? (
+                        <img
+                          src={s.passportPhoto}
+                          alt={`${s.firstName}'s Passport`}
+                          className="w-11 h-11 rounded-xl object-cover border border-emerald-600/30 shadow-xs"
+                        />
+                      ) : (
+                        <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs border border-emerald-200 shadow-xs">
+                          {s.firstName?.[0]}{s.lastName?.[0]}
+                        </div>
+                      )}
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-700 text-white rounded-full flex items-center justify-center shadow-xs">
+                        <Camera className="w-2.5 h-2.5" />
+                      </div>
+                    </button>
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm">
+                        {s.firstName} {s.lastName}
+                      </h4>
+                      <span className="font-mono font-semibold text-xs text-emerald-950">
+                        {s.admissionNo}
+                      </span>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      s.section === "PRIMARY"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-blue-100 text-blue-800"
+                    }`}
+                  >
+                    {s.section}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-semibold">Class</span>
+                    <strong className="text-slate-800">{s.classLevel} ({s.arm})</strong>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-semibold">Gender</span>
+                    <span
+                      className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                        s.gender === "FEMALE"
+                          ? "bg-pink-50 text-pink-700"
+                          : "bg-indigo-50 text-indigo-700"
+                      }`}
+                    >
+                      {s.gender}
+                    </span>
+                  </div>
+                  <div className="col-span-2 pt-1 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500 font-medium">Guardian: <strong className="text-slate-700">{s.guardianName}</strong></span>
+                    {s.guardianPhone && (
+                      <a href={`tel:${s.guardianPhone}`} className="text-emerald-700 font-bold underline">
+                        {s.guardianPhone}
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {/* Mobile Action Buttons */}
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => openPassportModal(s)}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors min-h-[40px]"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>Passport</span>
+                  </button>
+                  <Link
+                    href={`/dashboard/results/${s.id}`}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors min-h-[40px]"
+                  >
+                    <Award className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Report Card</span>
+                  </Link>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop View: Full Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
               <tr>
@@ -465,8 +568,8 @@ export default function StudentsPage() {
 
       {/* Registration Modal Dialog */}
       {showModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl border border-slate-100 max-h-[88vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">

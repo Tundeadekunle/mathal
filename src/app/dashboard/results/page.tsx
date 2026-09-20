@@ -12,12 +12,8 @@ import {
 import {
   Award,
   Search,
-  Filter,
-  Download,
   Eye,
   Calendar,
-  School,
-  FileCheck2,
 } from "lucide-react";
 
 export default function ResultsDirectoryPage() {
@@ -80,8 +76,8 @@ export default function ResultsDirectoryPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row gap-3">
-        <div className="flex-1 relative">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+        <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
             <Search className="w-4 h-4" />
           </div>
@@ -90,19 +86,18 @@ export default function ResultsDirectoryPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search student by name or admission no..."
-            className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+            className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-slate-400 hidden sm:inline" />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <select
             value={sectionFilter}
             onChange={(e) => {
               setSectionFilter(e.target.value);
               setClassFilter("ALL");
             }}
-            className="py-2 px-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full py-2 px-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             <option value="ALL">All Wings</option>
             <option value="PRIMARY">Primary Wing</option>
@@ -112,7 +107,7 @@ export default function ResultsDirectoryPage() {
           <select
             value={classFilter}
             onChange={(e) => setClassFilter(e.target.value)}
-            className="py-2 px-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="w-full py-2 px-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             <option value="ALL">All Classes</option>
             {(sectionFilter === "PRIMARY"
@@ -130,11 +125,11 @@ export default function ResultsDirectoryPage() {
           <select
             value={session}
             onChange={(e) => setSession(e.target.value)}
-            className="py-2 px-3 text-sm bg-emerald-50/60 border border-emerald-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold text-emerald-950"
+            className="w-full py-2 px-2.5 text-xs bg-emerald-50/60 border border-emerald-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold text-emerald-950"
           >
             {sessions.map((s) => (
               <option key={s} value={s}>
-                {s} Session
+                {s}
               </option>
             ))}
           </select>
@@ -142,7 +137,7 @@ export default function ResultsDirectoryPage() {
           <select
             value={term}
             onChange={(e) => setTerm(e.target.value)}
-            className="py-2 px-3 text-sm bg-amber-50/60 border border-amber-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-semibold text-slate-900"
+            className="w-full py-2 px-2.5 text-xs bg-amber-50/60 border border-amber-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 font-semibold text-slate-900"
           >
             {terms.map((t) => (
               <option key={t} value={t}>

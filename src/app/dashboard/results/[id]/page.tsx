@@ -334,58 +334,58 @@ export default function StudentResultSheetPage() {
       )}
 
       {/* Printable Report Sheet Document */}
-      <div className="printable-card relative bg-white rounded-2xl border-2 border-emerald-950/20 shadow-xl p-6 sm:p-10 max-w-4xl mx-auto overflow-hidden">
+      <div className="printable-card relative bg-white rounded-2xl border-2 border-emerald-950/20 shadow-xl p-3.5 sm:p-8 md:p-10 max-w-4xl mx-auto overflow-hidden">
         {/* =========================================================================
             WATERMARK: Centered official School Crest in the background 
             ========================================================================= */}
         <div className="result-watermark-overlay" aria-hidden="true">
           <img
-            src="/mathal-logo.svg"
+            src="/mathal-logo.jpg"
             alt="Mathal International Schools Official Watermark"
-            className="w-4/5 max-w-[500px] select-none pointer-events-none opacity-8"
+            className="w-4/5 max-w-[500px] select-none pointer-events-none"
           />
         </div>
 
         {/* Content Container (Layered above watermark) */}
-        <div className="relative z-10 space-y-6 text-slate-900">
+        <div className="relative z-10 space-y-4 sm:space-y-6 text-slate-900">
           {/* Header Block */}
-          <div className="border-b-2 border-emerald-900 pb-5">
-            <div className="flex items-center justify-between gap-4">
+          <div className="border-b-2 border-emerald-900 pb-4 sm:pb-5">
+            <div className="flex items-center justify-between gap-2 sm:gap-4">
               {/* Left Crest */}
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 w-12 h-12 sm:w-20 sm:h-20 relative">
                 <Image
-                  src="/mathal-logo.svg"
+                  src="/mathal-logo.jpg"
                   alt="Mathal Schools Crest"
-                  width={85}
-                  height={85}
+                  fill
+                  sizes="(max-width: 640px) 48px, 80px"
                   priority
-                  className="drop-shadow-sm"
+                  className="drop-shadow-sm rounded-lg object-contain"
                 />
               </div>
 
               {/* Center School Details */}
-              <div className="text-center flex-1">
-                <h1 className="text-2xl sm:text-3xl font-serif font-black tracking-tight text-emerald-950 uppercase leading-none">
+              <div className="text-center flex-1 min-w-0">
+                <h1 className="text-base sm:text-2xl md:text-3xl font-serif font-black tracking-tight text-emerald-950 uppercase leading-tight">
                   MATHAL INTERNATIONAL SCHOOLS
                 </h1>
-                <p className="text-xs sm:text-sm font-bold text-emerald-800 tracking-widest uppercase mt-1">
+                <p className="text-[9px] sm:text-xs md:text-sm font-bold text-emerald-800 tracking-wider uppercase mt-0.5 sm:mt-1 truncate">
                   {report.section === "PRIMARY"
                     ? "PRIMARY & NURSERY WING"
                     : "SECONDARY & HIGH SCHOOL WING"}
                 </p>
-                <p className="text-[11px] font-serif italic text-amber-800 font-semibold mt-0.5">
+                <p className="text-[8px] sm:text-[11px] font-serif italic text-amber-800 font-semibold mt-0.5 hidden xs:block">
                   &ldquo;Knowledge is Light &bull; Virtue and Excellence&rdquo;
                 </p>
-                <p className="text-[10px] text-slate-600 mt-1 font-medium">
+                <p className="text-[8px] sm:text-[10px] text-slate-600 mt-0.5 sm:mt-1 font-medium hidden sm:block">
                   12 Crescent Avenue, GRA Extension &bull; Tel: +234 803 123 4567, +234 802 987 6543
                 </p>
-                <p className="text-[10px] text-slate-600 font-medium">
+                <p className="text-[8px] sm:text-[10px] text-slate-600 font-medium hidden sm:block">
                   Email: info@mathal.edu.ng &bull; Web: www.mathal.edu.ng
                 </p>
               </div>
 
               {/* Right Pupil Photo / Passport Frame */}
-              <div className="flex-shrink-0 w-22 h-26 sm:w-24 sm:h-28 rounded-xl border-2 border-emerald-950/20 bg-white p-1 shadow-sm overflow-hidden flex flex-col items-center justify-center relative group">
+              <div className="flex-shrink-0 w-14 h-16 sm:w-22 sm:h-26 md:w-24 md:h-28 rounded-xl border-2 border-emerald-950/20 bg-white p-1 shadow-sm overflow-hidden flex flex-col items-center justify-center relative group">
                 {student.passportPhoto ? (
                   <img
                     src={student.passportPhoto}
@@ -393,11 +393,11 @@ export default function StudentResultSheetPage() {
                     className="w-full h-full object-cover rounded-lg"
                   />
                 ) : (
-                  <div className="w-full h-full rounded-lg bg-slate-50 flex flex-col items-center justify-center p-1 text-center text-[10px] text-slate-400">
-                    <div className="w-8 h-8 rounded-full bg-slate-200 mb-1 flex items-center justify-center font-bold text-slate-500">
+                  <div className="w-full h-full rounded-lg bg-slate-50 flex flex-col items-center justify-center p-0.5 sm:p-1 text-center text-[8px] sm:text-[10px] text-slate-400">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-200 mb-0.5 sm:mb-1 flex items-center justify-center font-bold text-slate-500 text-xs">
                       {student.firstName?.[0]}{student.lastName?.[0]}
                     </div>
-                    Passport Photo
+                    <span className="hidden sm:inline">Passport</span>
                   </div>
                 )}
 
@@ -409,94 +409,94 @@ export default function StudentResultSheetPage() {
                     className="no-print absolute inset-0 bg-black/50 text-white flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg cursor-pointer text-[10px] font-semibold gap-0.5"
                   >
                     <Camera className="w-4 h-4" />
-                    <span>{student.passportPhoto ? "Change" : "Upload"}</span>
+                    <span className="hidden sm:inline">{student.passportPhoto ? "Change" : "Upload"}</span>
                   </button>
                 )}
               </div>
             </div>
 
             {/* Document Title Banner */}
-            <div className="mt-4 py-1.5 px-4 bg-[#0B1A36] text-white rounded-lg flex items-center justify-between text-xs font-bold uppercase tracking-wider">
-              <span>CONTINUOUS ASSESSMENT &amp; TERMINAL REPORT SHEET</span>
-              <span className="text-amber-300 font-mono">
+            <div className="mt-3 sm:mt-4 py-1.5 px-3 sm:px-4 bg-[#0B1A36] text-white rounded-lg flex flex-col xs:flex-row items-center justify-between gap-1 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center xs:text-left">
+              <span>CONTINUOUS ASSESSMENT &amp; REPORT SHEET</span>
+              <span className="text-amber-300 font-mono text-[10px] sm:text-xs">
                 {report.session} &bull; {report.term}
               </span>
             </div>
           </div>
 
           {/* Student Profile & Bio-Data Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-slate-50/80 p-3.5 rounded-xl border border-slate-200">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 text-xs bg-slate-50/80 p-3 sm:p-3.5 rounded-xl border border-slate-200">
             <div>
-              <span className="text-[10px] text-slate-500 uppercase font-semibold block">
+              <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-semibold block">
                 Pupil / Student Name
               </span>
-              <span className="font-bold text-slate-900 text-sm">
+              <span className="font-bold text-slate-900 text-xs sm:text-sm truncate block">
                 {student.firstName} {student.lastName}
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-500 uppercase font-semibold block">
+              <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-semibold block">
                 Admission Number
               </span>
-              <span className="font-mono font-bold text-emerald-950">
+              <span className="font-mono font-bold text-emerald-950 text-xs sm:text-sm">
                 {student.admissionNo}
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-500 uppercase font-semibold block">
+              <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-semibold block">
                 Class &amp; Stream
               </span>
-              <span className="font-bold text-slate-900">
+              <span className="font-bold text-slate-900 text-xs sm:text-sm">
                 {student.classLevel} ({student.arm})
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-500 uppercase font-semibold block">
+              <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-semibold block">
                 Gender / Sex
               </span>
-              <span className="font-bold text-slate-900">{student.gender}</span>
+              <span className="font-bold text-slate-900 text-xs sm:text-sm">{student.gender}</span>
             </div>
 
             <div>
-              <span className="text-[10px] text-slate-500 uppercase font-semibold block">
+              <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-semibold block">
                 Class Position
               </span>
-              <span className="font-bold text-emerald-800 text-sm">
+              <span className="font-bold text-emerald-800 text-xs sm:text-sm">
                 {report.position}
-                <span className="text-[11px] text-slate-500 font-normal">
+                <span className="text-[10px] sm:text-[11px] text-slate-500 font-normal">
                   {" "}out of {report.totalStudents}
                 </span>
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-500 uppercase font-semibold block">
+              <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-semibold block">
                 Overall Average
               </span>
-              <span className="font-black text-slate-900 text-sm">
+              <span className="font-black text-slate-900 text-xs sm:text-sm">
                 {report.averageScore}%
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-500 uppercase font-semibold block">
+              <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-semibold block">
                 Times School Opened
               </span>
-              <span className="font-semibold text-slate-900">
+              <span className="font-semibold text-slate-900 text-xs">
                 {report.timesSchoolOpened} Days
               </span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-500 uppercase font-semibold block">
+              <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-semibold block">
                 Attendance Record
               </span>
-              <span className="font-semibold text-slate-900">
-                {report.timesPresent} Present &bull; {report.timesAbsent} Absent
+              <span className="font-semibold text-slate-900 text-xs">
+                {report.timesPresent} P &bull; {report.timesAbsent} A
               </span>
             </div>
           </div>
 
           {/* Academic Cognitive Domain Scores Table */}
-          <div className="border border-slate-300 rounded-xl overflow-hidden shadow-xs">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="border border-slate-300 rounded-xl overflow-x-auto shadow-xs">
+            <table className="w-full text-left text-xs border-collapse min-w-[540px] sm:min-w-full">
               <thead className="bg-emerald-900 text-white font-bold text-[11px] uppercase tracking-wider">
                 <tr>
                   <th className="py-2.5 px-3">Curriculum Subject</th>
@@ -595,7 +595,7 @@ export default function StudentResultSheetPage() {
                             key={val}
                             onClick={() => handleAffectiveChange(trait, val)}
                             title={`${trait}: ${val} (${RATING_SCALE.find((r) => r.value === val)?.label})`}
-                            className={`w-6 h-6 rounded-md text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer ${
+                            className={`w-7 h-7 sm:w-6 sm:h-6 rounded-md text-[11px] sm:text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer ${
                               isSelected
                                 ? "bg-emerald-800 text-white shadow-sm ring-2 ring-emerald-500 font-black scale-105"
                                 : "bg-slate-100 text-slate-500 hover:bg-emerald-100 hover:text-emerald-900 border border-slate-200"
@@ -606,7 +606,7 @@ export default function StudentResultSheetPage() {
                         ) : (
                           <span
                             key={val}
-                            className={`w-4 h-4 rounded text-[9px] font-bold flex items-center justify-center ${
+                            className={`w-5 h-5 sm:w-4 sm:h-4 rounded text-[10px] sm:text-[9px] font-bold flex items-center justify-center ${
                               isSelected
                                 ? "bg-emerald-800 text-white font-bold"
                                 : "text-slate-300"
@@ -645,7 +645,7 @@ export default function StudentResultSheetPage() {
                             key={val}
                             onClick={() => handlePsychomotorChange(skill, val)}
                             title={`${skill}: ${val} (${RATING_SCALE.find((r) => r.value === val)?.label})`}
-                            className={`w-6 h-6 rounded-md text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer ${
+                            className={`w-7 h-7 sm:w-6 sm:h-6 rounded-md text-[11px] sm:text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer ${
                               isSelected
                                 ? "bg-amber-600 text-white shadow-sm ring-2 ring-amber-400 font-black scale-105"
                                 : "bg-slate-100 text-slate-500 hover:bg-amber-100 hover:text-amber-900 border border-slate-200"
@@ -656,7 +656,7 @@ export default function StudentResultSheetPage() {
                         ) : (
                           <span
                             key={val}
-                            className={`w-4 h-4 rounded text-[9px] font-bold flex items-center justify-center ${
+                            className={`w-5 h-5 sm:w-4 sm:h-4 rounded text-[10px] sm:text-[9px] font-bold flex items-center justify-center ${
                               isSelected
                                 ? "bg-amber-600 text-white font-bold"
                                 : "text-slate-300"

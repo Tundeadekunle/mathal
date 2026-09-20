@@ -19,7 +19,22 @@ import {
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0B1A36] via-[#09152B] to-[#050C19] text-slate-100 flex flex-col selection:bg-amber-400 selection:text-blue-950">
+    <div className="min-h-screen bg-gradient-to-b from-[#0B1A36] via-[#09152B] to-[#050C19] text-slate-100 flex flex-col selection:bg-amber-400 selection:text-blue-950 relative overflow-x-hidden">
+      {/* Background Image: Mathal Logo Watermark */}
+      <div
+        className="fixed inset-0 pointer-events-none z-0 flex items-center justify-center overflow-hidden"
+        aria-hidden="true"
+      >
+        <div
+          className="w-full h-full bg-center bg-no-repeat opacity-[0.07] scale-105 transition-opacity"
+          style={{
+            backgroundImage: "url('/mathal-logo.jpg')",
+            backgroundSize: "min(640px, 85vw)",
+            backgroundPosition: "center 38%",
+          }}
+        />
+      </div>
+
       {/* Top Header */}
       <header className="sticky top-0 z-40 backdrop-blur-md bg-[#0B1A36]/90 border-b border-blue-900/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
@@ -50,13 +65,25 @@ export default function Home() {
       </header>
 
       {/* Hero Section */}
-      <main className="flex-1">
+      <main className="flex-1 relative z-10">
         <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-28">
           {/* Subtle Background Glows in Navy & Gold */}
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute top-1/3 right-10 w-[400px] h-[400px] bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          {/* Hero Centered Logo Background Watermark */}
+          <div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] h-[480px] max-w-[90vw] max-h-[90vw] pointer-events-none opacity-[0.08] select-none flex items-center justify-center"
+            aria-hidden="true"
+          >
+            <img
+              src="/mathal-logo.jpg"
+              alt=""
+              className="w-full h-full object-contain filter drop-shadow-2xl rounded-3xl"
+            />
+          </div>
+
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="text-center max-w-3xl mx-auto">
               {/* Badge */}
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-950/80 border border-blue-700/60 text-blue-200 text-xs font-semibold uppercase tracking-wider mb-8 backdrop-blur-sm shadow-sm">

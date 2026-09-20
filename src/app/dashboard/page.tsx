@@ -55,7 +55,7 @@ export default function DashboardOverview() {
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0B1A36] via-[#0D224A] to-[#0A162C] text-white p-6 sm:p-8 shadow-sm border border-blue-900/40">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0B1A36] via-[#0D224A] to-[#0A162C] text-white p-4 sm:p-8 shadow-sm border border-blue-900/40">
         <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -65,10 +65,10 @@ export default function DashboardOverview() {
               <span>Academic Portal Active &bull; </span>
               <span className="font-bold underline decoration-amber-400">{session} {term}</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-serif font-black tracking-tight">
+            <h1 className="text-xl sm:text-3xl font-serif font-black tracking-tight">
               Welcome back, {user.name}
             </h1>
-            <p className="mt-1 text-sm text-blue-100/90 max-w-xl">
+            <p className="mt-1 text-xs sm:text-sm text-blue-100/90 max-w-xl">
               {role === "ADMIN" &&
                 "School Administration dashboard. Oversee primary & secondary enrollments, attendance, assessment results, and CBT testing."}
               {role === "TEACHER" &&
@@ -78,11 +78,11 @@ export default function DashboardOverview() {
             </p>
           </div>
 
-          <div className="flex-shrink-0 flex items-center gap-3">
+          <div className="w-full sm:w-auto flex-shrink-0 flex items-center gap-3">
             {role === "STUDENT" ? (
               <Link
                 href="/dashboard/results"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-sm shadow-md transition-all"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-sm shadow-md transition-all min-h-[44px]"
               >
                 <Award className="w-4 h-4" />
                 View My Result
@@ -90,7 +90,7 @@ export default function DashboardOverview() {
             ) : (
               <Link
                 href="/dashboard/scores"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-sm shadow-md transition-all"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-sm shadow-md transition-all min-h-[44px]"
               >
                 <FileSpreadsheet className="w-4 h-4" />
                 Input Scores
@@ -162,50 +162,50 @@ export default function DashboardOverview() {
       )}
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-            <Users className="w-6 h-6" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-slate-200/80 shadow-sm flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center flex-shrink-0">
+            <Users className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-800">{students.length}</div>
-            <div className="text-xs font-semibold text-slate-500">Enrolled Students</div>
-            <div className="text-[11px] text-emerald-600 font-medium">
-              {primaryCount} Primary &bull; {secondaryCount} Secondary
+          <div className="min-w-0">
+            <div className="text-xl sm:text-2xl font-bold text-slate-800">{students.length}</div>
+            <div className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">Enrolled Students</div>
+            <div className="text-[10px] sm:text-[11px] text-emerald-600 font-medium truncate">
+              {primaryCount} Pri &bull; {secondaryCount} Sec
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
-            <CalendarCheck className="w-6 h-6" />
+        <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-slate-200/80 shadow-sm flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center flex-shrink-0">
+            <CalendarCheck className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-800">96.8%</div>
-            <div className="text-xs font-semibold text-slate-500">Attendance Rate</div>
-            <div className="text-[11px] text-blue-600 font-medium">Today&apos;s Roll Marked</div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
-            <GraduationCap className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-800">{exams.length}</div>
-            <div className="text-xs font-semibold text-slate-500">Active CBT Exams</div>
-            <div className="text-[11px] text-purple-600 font-medium">Test Hall Open</div>
+          <div className="min-w-0">
+            <div className="text-xl sm:text-2xl font-bold text-slate-800">96.8%</div>
+            <div className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">Attendance Rate</div>
+            <div className="text-[10px] sm:text-[11px] text-blue-600 font-medium truncate">Roll Marked</div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-            <School className="w-6 h-6" />
+        <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-slate-200/80 shadow-sm flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center flex-shrink-0">
+            <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
-          <div>
-            <div className="text-xl font-bold text-slate-800 truncate max-w-[150px]">{term}</div>
-            <div className="text-xs font-semibold text-slate-500">{session} Session</div>
-            <div className="text-[11px] text-amber-600 font-medium">CA &amp; Exam Season</div>
+          <div className="min-w-0">
+            <div className="text-xl sm:text-2xl font-bold text-slate-800">{exams.length}</div>
+            <div className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">Active CBT</div>
+            <div className="text-[10px] sm:text-[11px] text-purple-600 font-medium truncate">Test Hall Open</div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-slate-200/80 shadow-sm flex items-center gap-3 sm:gap-4">
+          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center flex-shrink-0">
+            <School className="w-5 h-5 sm:w-6 sm:h-6" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-lg sm:text-xl font-bold text-slate-800 truncate">{term.split(" ")[0]} Term</div>
+            <div className="text-[11px] sm:text-xs font-semibold text-slate-500 truncate">{session}</div>
+            <div className="text-[10px] sm:text-[11px] text-amber-600 font-medium truncate">Active Season</div>
           </div>
         </div>
       </div>
@@ -230,16 +230,16 @@ export default function DashboardOverview() {
         </div>
 
         {/* Quick controls */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-          <div className="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700 rounded-xl p-1 text-xs">
-            <span className="px-2 text-[11px] font-bold text-slate-400">SESSION:</span>
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full md:w-auto">
+          <div className="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700 rounded-xl p-1 text-xs overflow-x-auto">
+            <span className="px-2 text-[10px] sm:text-[11px] font-bold text-slate-400">SESSION:</span>
             {sessions.map((s) => (
               <button
                 key={s}
                 onClick={() => setSession(s)}
-                className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-all ${
+                className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-all whitespace-nowrap ${
                   session === s
-                    ? "bg-emerald-600 text-white shadow"
+                    ? "bg-emerald-600 text-white shadow font-bold"
                     : "text-slate-300 hover:text-white hover:bg-slate-700"
                 }`}
               >
@@ -248,13 +248,13 @@ export default function DashboardOverview() {
             ))}
           </div>
 
-          <div className="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700 rounded-xl p-1 text-xs">
-            <span className="px-2 text-[11px] font-bold text-slate-400">TERM:</span>
+          <div className="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700 rounded-xl p-1 text-xs overflow-x-auto">
+            <span className="px-2 text-[10px] sm:text-[11px] font-bold text-slate-400">TERM:</span>
             {terms.map((t) => (
               <button
                 key={t}
                 onClick={() => setTerm(t)}
-                className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-all ${
+                className={`px-2.5 py-1 rounded-lg font-semibold text-xs transition-all whitespace-nowrap ${
                   term === t
                     ? "bg-amber-400 text-slate-950 font-bold shadow"
                     : "text-slate-300 hover:text-white hover:bg-slate-700"

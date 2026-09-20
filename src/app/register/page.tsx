@@ -181,6 +181,17 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Background Image: Mathal Logo Watermark */}
+      <div
+        className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center overflow-hidden"
+        aria-hidden="true"
+      >
+        <div
+          className="w-[500px] h-[500px] max-w-[85vw] max-h-[85vw] bg-center bg-no-repeat bg-contain opacity-[0.06] rounded-3xl"
+          style={{ backgroundImage: "url('/mathal-logo.jpg')" }}
+        />
+      </div>
+
       {/* Background Glows */}
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-emerald-600/15 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />

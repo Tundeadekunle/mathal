@@ -177,7 +177,7 @@ export default function AttendancePage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-serif font-black text-slate-900 tracking-tight">
+          <h1 className="text-xl sm:text-2xl font-serif font-black text-slate-900 tracking-tight">
             Daily Attendance Register
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
@@ -185,16 +185,16 @@ export default function AttendancePage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
             onClick={() => handleMarkAll("PRESENT")}
-            className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors cursor-pointer"
+            className="flex-1 sm:flex-initial px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors cursor-pointer min-h-[44px] text-center"
           >
             Mark All Present
           </button>
           <button
             onClick={handleSave}
-            className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer min-h-[44px]"
           >
             <Save className="w-4 h-4 text-amber-300" />
             Save Register
@@ -225,7 +225,7 @@ export default function AttendancePage() {
       )}
 
       {/* Class and Date Selector Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm grid grid-cols-1 sm:grid-cols-4 gap-3">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Date Picker */}
         <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1">
@@ -283,10 +283,10 @@ export default function AttendancePage() {
           </select>
         </div>
 
-        {/* Arm Picker */}
+        {/* Arm / Stream Picker */}
         <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1">
-            Class Arm
+            Arm / Stream
           </label>
           <select
             value={arm}
@@ -304,59 +304,148 @@ export default function AttendancePage() {
 
       {/* Attendance Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold">
-            <Users className="w-5 h-5" />
+        <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 flex items-center gap-2.5 sm:gap-3">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center font-bold flex-shrink-0">
+            <Users className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <div className="text-xl font-bold text-slate-900">{totalStudents}</div>
-            <div className="text-[11px] text-slate-500">In Class</div>
-          </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
-            <CheckCircle2 className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-xl font-bold text-emerald-700">{presentCount}</div>
-            <div className="text-[11px] text-slate-500">Present Today</div>
+          <div className="min-w-0">
+            <div className="text-lg sm:text-xl font-bold text-slate-900">{totalStudents}</div>
+            <div className="text-[10px] sm:text-[11px] text-slate-500 truncate">In Class</div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-rose-50 text-rose-700 flex items-center justify-center font-bold">
-            <XCircle className="w-5 h-5" />
+        <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 flex items-center gap-2.5 sm:gap-3">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold flex-shrink-0">
+            <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <div className="text-xl font-bold text-rose-700">{absentCount}</div>
-            <div className="text-[11px] text-slate-500">Absent Today</div>
+          <div className="min-w-0">
+            <div className="text-lg sm:text-xl font-bold text-emerald-700">{presentCount}</div>
+            <div className="text-[10px] sm:text-[11px] text-slate-500 truncate">Present</div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-slate-200/80 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold">
-            <Sparkles className="w-5 h-5" />
+        <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 flex items-center gap-2.5 sm:gap-3">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-rose-50 text-rose-700 flex items-center justify-center font-bold flex-shrink-0">
+            <XCircle className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <div className="text-xl font-bold text-blue-700">{attendanceRate}%</div>
-            <div className="text-[11px] text-slate-500">Attendance Rate</div>
+          <div className="min-w-0">
+            <div className="text-lg sm:text-xl font-bold text-rose-700">{absentCount}</div>
+            <div className="text-[10px] sm:text-[11px] text-slate-500 truncate">Absent</div>
+          </div>
+        </div>
+
+        <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200/80 flex items-center gap-2.5 sm:gap-3">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold flex-shrink-0">
+            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-lg sm:text-xl font-bold text-blue-700">{attendanceRate}%</div>
+            <div className="text-[10px] sm:text-[11px] text-slate-500 truncate">Rate</div>
           </div>
         </div>
       </div>
 
-      {/* Roster Roll Call Sheet */}
+      {/* Roster Roll Call Sheet: Mobile Cards & Desktop Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="font-bold text-slate-800 text-sm">
+        <div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h3 className="font-bold text-slate-800 text-xs sm:text-sm">
             Attendance Sheet &bull; {classLevel} ({arm}) &bull; {date}
           </h3>
-          <span className="text-xs text-slate-400">
-            Click status pill to toggle
+          <span className="text-[11px] sm:text-xs text-slate-400">
+            Click status to toggle
           </span>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Mobile View: High Density Roll Call Cards */}
+        <div className="block md:hidden divide-y divide-slate-100">
+          {students.length === 0 ? (
+            <div className="px-4 py-8 text-center text-slate-400 text-xs">
+              No pupils or students enrolled in {classLevel} ({arm}) yet.
+            </div>
+          ) : (
+            students.map((st) => {
+              const currentStatus = attendanceMap[st.id]?.status || "PRESENT";
+              const remarks = attendanceMap[st.id]?.remarks || "";
+
+              return (
+                <div key={st.id} className="p-4 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm">
+                        {st.firstName} {st.lastName}
+                      </h4>
+                      <span className="font-mono font-semibold text-xs text-emerald-950">
+                        {st.admissionNo}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+                      {st.gender}
+                    </span>
+                  </div>
+
+                  {/* 4 Segmented Status Buttons */}
+                  <div className="grid grid-cols-4 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange(st.id, "PRESENT")}
+                      className={`py-2 px-1 rounded-xl text-xs font-bold transition-all min-h-[40px] text-center ${
+                        currentStatus === "PRESENT"
+                          ? "bg-emerald-600 text-white shadow-xs"
+                          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      }`}
+                    >
+                      Present
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange(st.id, "ABSENT")}
+                      className={`py-2 px-1 rounded-xl text-xs font-bold transition-all min-h-[40px] text-center ${
+                        currentStatus === "ABSENT"
+                          ? "bg-rose-600 text-white shadow-xs"
+                          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      }`}
+                    >
+                      Absent
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange(st.id, "LATE")}
+                      className={`py-2 px-1 rounded-xl text-xs font-bold transition-all min-h-[40px] text-center ${
+                        currentStatus === "LATE"
+                          ? "bg-amber-500 text-white shadow-xs"
+                          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      }`}
+                    >
+                      Late
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleStatusChange(st.id, "EXCUSED")}
+                      className={`py-2 px-1 rounded-xl text-xs font-bold transition-all min-h-[40px] text-center ${
+                        currentStatus === "EXCUSED"
+                          ? "bg-blue-600 text-white shadow-xs"
+                          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                      }`}
+                    >
+                      Excused
+                    </button>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={remarks}
+                    onChange={(e) => handleRemarksChange(st.id, e.target.value)}
+                    placeholder="Optional remark / reason for absence..."
+                    className="w-full text-xs py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop View: Full Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-sm text-slate-600">
             <thead className="bg-slate-50 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
               <tr>

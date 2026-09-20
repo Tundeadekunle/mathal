@@ -57,9 +57,10 @@ body {
   }
 
   /* Keep watermark background visible when printing */
-  .result-watermark {
+  .result-watermark,
+  .result-watermark-overlay {
     display: flex !important;
-    opacity: 0.08 !important;
+    opacity: 0.09 !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -80,7 +81,16 @@ body {
 .result-watermark-overlay img {
   width: 75%;
   max-width: 520px;
-  opacity: 0.07;
-  filter: grayscale(10%);
+  opacity: 0.08;
+  mix-blend-mode: multiply;
+  filter: grayscale(8%);
   user-select: none;
+}
+
+/* Global / Component Mathal background watermark utility */
+.mathal-bg-watermark {
+  background-image: url('/mathal-logo.jpg');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
 }

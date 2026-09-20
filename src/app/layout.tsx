@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description:
     "Official portal for Mathal International Schools - Student Registration, Attendance Tracking, Continuous Assessment (CA) & Exam Results, CBT Exam Portal, and Downloadable Terminal Reports.",
   icons: {
-    icon: "/mathal-logo.svg",
+    icon: "/mathal-logo.jpg",
   },
 };
 

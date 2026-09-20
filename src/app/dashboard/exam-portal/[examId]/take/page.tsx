@@ -1,11 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { dataStore, DemoCbtExam } from "@/lib/store";
-import Logo from "@/components/Logo";
 import confetti from "canvas-confetti";
 import {
   Clock,
@@ -16,12 +15,10 @@ import {
   Award,
   ArrowRight,
   Sparkles,
-  HelpCircle,
 } from "lucide-react";
 
 export default function TakeExamPage() {
   const params = useParams();
-  const router = useRouter();
   const { user } = useAuth();
   const examId = params?.examId as string;
 
@@ -244,44 +241,70 @@ export default function TakeExamPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Exam Hall Top Bar */}
-      <div className="bg-emerald-950 text-white rounded-2xl p-5 shadow-lg border border-emerald-800/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-amber-400">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>CBT Active Examination Hall &bull; Mathal MIS</span>
+    <div className="space-y-4 sm:space-y-6">
+      {/* Exam Hall Top Bar - Sticky on Mobile */}
+      <div className="sticky top-14 sm:static z-20 bg-emerald-950 text-white rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-lg border border-emerald-800/80 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-400">
+            <Sparkles className="w-3 h-3 flex-shrink-0" />
+            <span className="truncate">CBT Hall &bull; Mathal</span>
           </div>
-          <h2 className="text-lg font-bold text-white mt-1">{exam.title}</h2>
-          <div className="text-xs text-emerald-300">
-            Candidate: <strong>{user?.name || "Student"}</strong> &bull; {exam.classLevel}
+          <h2 className="text-sm sm:text-lg font-bold text-white mt-0.5 truncate">{exam.title}</h2>
+          <div className="text-[11px] sm:text-xs text-emerald-300 truncate">
+            {user?.name || "Student"} &bull; {exam.classLevel}
           </div>
         </div>
 
         {/* Live Timer Countdown */}
         <div
-          className={`px-5 py-2.5 rounded-xl border flex items-center gap-3 transition-all ${
+          className={`px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-xl border flex items-center gap-2 sm:gap-3 transition-all flex-shrink-0 ${
             isUrgent
               ? "bg-rose-500/20 border-rose-500 text-rose-400 animate-pulse"
               : "bg-emerald-900 border-emerald-700 text-amber-300"
           }`}
         >
-          <Clock className="w-5 h-5" />
-          <div>
-            <div className="text-[10px] uppercase font-bold tracking-wider">
-              Time Remaining
+          <Clock className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+          <div className="text-right sm:text-left">
+            <div className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider hidden sm:block">
+              Time Left
             </div>
-            <div className="text-xl font-mono font-black">{timeFormatted}</div>
+            <div className="text-base sm:text-xl font-mono font-black">{timeFormatted}</div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      {/* Mobile Horizontal Question Strip */}
+      <div className="lg:hidden bg-white p-2 rounded-xl border border-slate-200/80 shadow-xs flex items-center gap-1.5 overflow-x-auto">
+        <span className="text-[11px] font-bold text-slate-400 pl-1 flex-shrink-0">Q:</span>
+        {exam.questions.map((q, idx) => {
+          const isAnswered = !!answers[q.id];
+          const isCurrent = idx === currentIdx;
+
+          return (
+            <button
+              key={q.id}
+              type="button"
+              onClick={() => setCurrentIdx(idx)}
+              className={`min-w-[34px] h-[34px] rounded-lg text-xs font-bold transition-all flex items-center justify-center flex-shrink-0 cursor-pointer ${
+                isCurrent
+                  ? "ring-2 ring-amber-400 bg-emerald-800 text-white shadow-xs"
+                  : isAnswered
+                  ? "bg-emerald-600 text-white"
+                  : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              {idx + 1}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
         {/* Main Question Sheet */}
         <div className="lg:col-span-3 space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-6">
-              <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 sm:p-8">
+            <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-100 mb-4 sm:mb-6">
+              <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full">
                 Question {currentIdx + 1} of {totalQuestions}
               </span>
               <span className="text-xs text-slate-400">
@@ -290,12 +313,12 @@ export default function TakeExamPage() {
             </div>
 
             {/* Question Text */}
-            <h3 className="text-base sm:text-lg font-semibold text-slate-900 leading-relaxed mb-6">
+            <h3 className="text-sm sm:text-lg font-semibold text-slate-900 leading-relaxed mb-5 sm:mb-6">
               {currentQ.questionText}
             </h3>
 
             {/* Options List */}
-            <div className="space-y-3">
+            <div className="space-y-2.5 sm:space-y-3">
               {(["A", "B", "C", "D"] as const).map((optKey) => {
                 const optText = currentQ[`option${optKey}` as keyof typeof currentQ];
                 const isSelected = answers[currentQ.id] === optKey;
@@ -305,14 +328,14 @@ export default function TakeExamPage() {
                     key={optKey}
                     type="button"
                     onClick={() => handleSelectOption(currentQ.id, optKey)}
-                    className={`w-full text-left p-4 rounded-xl border transition-all flex items-center gap-3 cursor-pointer ${
+                    className={`w-full text-left p-3.5 sm:p-4 rounded-xl border transition-all flex items-center gap-3 cursor-pointer min-h-[50px] ${
                       isSelected
-                        ? "bg-emerald-50 border-emerald-500 text-emerald-950 font-bold shadow-sm"
+                        ? "bg-emerald-50 border-emerald-500 text-emerald-950 font-bold shadow-xs"
                         : "bg-slate-50/70 border-slate-200 hover:bg-slate-100/70 text-slate-800"
                     }`}
                   >
                     <div
-                      className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black transition-colors ${
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black transition-colors flex-shrink-0 ${
                         isSelected
                           ? "bg-emerald-700 text-white"
                           : "bg-white border border-slate-300 text-slate-600"
@@ -320,22 +343,22 @@ export default function TakeExamPage() {
                     >
                       {optKey}
                     </div>
-                    <span className="text-sm">{optText}</span>
+                    <span className="text-xs sm:text-sm">{optText}</span>
                   </button>
                 );
               })}
             </div>
 
             {/* Navigation & Submit Controls */}
-            <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">
+            <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-slate-100 flex items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => setCurrentIdx((prev) => Math.max(0, prev - 1))}
                 disabled={currentIdx === 0}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-30 cursor-pointer"
+                className="inline-flex items-center justify-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-30 cursor-pointer min-h-[44px]"
               >
                 <ChevronLeft className="w-4 h-4" />
-                Previous
+                <span>Prev</span>
               </button>
 
               <div className="flex items-center gap-2">
@@ -343,18 +366,18 @@ export default function TakeExamPage() {
                   <button
                     type="button"
                     onClick={() => setCurrentIdx((prev) => Math.min(totalQuestions - 1, prev + 1))}
-                    className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+                    className="inline-flex items-center justify-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer min-h-[44px]"
                   >
-                    Next Question
+                    <span>Next</span>
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={() => setShowConfirmModal(true)}
-                    className="inline-flex items-center gap-1.5 px-6 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 text-xs font-black shadow-md transition-all cursor-pointer"
+                    className="inline-flex items-center justify-center gap-1.5 px-5 sm:px-6 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 text-xs font-black shadow-md transition-all cursor-pointer min-h-[44px]"
                   >
-                    Submit Exam
+                    <span>Submit</span>
                     <CheckCircle2 className="w-4 h-4" />
                   </button>
                 )}
@@ -365,10 +388,10 @@ export default function TakeExamPage() {
 
         {/* Sidebar Question Palette */}
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 sm:p-5">
             <h4 className="font-bold text-slate-800 text-sm mb-3">Question Palette</h4>
 
-            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+            <div className="grid grid-cols-5 gap-2">
               {exam.questions.map((q, idx) => {
                 const isAnswered = !!answers[q.id];
                 const isCurrent = idx === currentIdx;
@@ -392,7 +415,7 @@ export default function TakeExamPage() {
               })}
             </div>
 
-            <div className="mt-5 pt-4 border-t border-slate-100 space-y-2 text-[11px] text-slate-500">
+            <div className="mt-4 sm:mt-5 pt-3 sm:pt-4 border-t border-slate-100 space-y-2 text-[11px] text-slate-500">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded bg-emerald-600" />
                 <span>Answered ({answeredCount})</span>
@@ -410,7 +433,7 @@ export default function TakeExamPage() {
             <button
               type="button"
               onClick={() => setShowConfirmModal(true)}
-              className="w-full mt-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-xs shadow-md transition-all text-center cursor-pointer"
+              className="w-full mt-4 sm:mt-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-xs shadow-md transition-all text-center cursor-pointer min-h-[44px]"
             >
               Finish &amp; Submit
             </button>
