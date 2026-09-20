@@ -334,7 +334,7 @@ export default function StudentResultSheetPage() {
       )}
 
       {/* Printable Report Sheet Document */}
-      <div className="printable-card relative bg-white rounded-2xl border-2 border-emerald-950/20 shadow-xl p-3.5 sm:p-8 md:p-10 max-w-4xl mx-auto overflow-hidden">
+      <div className="printable-card relative bg-white rounded-2xl border-2 border-emerald-950/20 shadow-xl p-3.5 sm:p-8 md:p-10 max-w-4xl mx-auto overflow-hidden print:p-0 print:border-none print:shadow-none print:rounded-none">
         {/* =========================================================================
             WATERMARK: Centered official School Crest in the background 
             ========================================================================= */}
@@ -342,17 +342,17 @@ export default function StudentResultSheetPage() {
           <img
             src="/mathal-logo.jpg"
             alt="Mathal International Schools Official Watermark"
-            className="w-4/5 max-w-[500px] select-none pointer-events-none"
+            className="w-4/5 max-w-[500px] select-none pointer-events-none print:w-[320px] print:max-w-none print:opacity-[0.06]"
           />
         </div>
 
         {/* Content Container (Layered above watermark) */}
-        <div className="relative z-10 space-y-4 sm:space-y-6 text-slate-900">
+        <div className="relative z-10 space-y-4 sm:space-y-6 text-slate-900 print:space-y-2">
           {/* Header Block */}
-          <div className="border-b-2 border-emerald-900 pb-4 sm:pb-5">
+          <div className="border-b-2 border-emerald-900 pb-4 sm:pb-5 print:pb-1.5 print:border-b">
             <div className="flex items-center justify-between gap-2 sm:gap-4">
               {/* Left Crest */}
-              <div className="flex-shrink-0 w-12 h-12 sm:w-20 sm:h-20 relative">
+              <div className="flex-shrink-0 w-12 h-12 sm:w-20 sm:h-20 print:w-14 print:h-14 relative">
                 <Image
                   src="/mathal-logo.jpg"
                   alt="Mathal Schools Crest"
@@ -365,32 +365,32 @@ export default function StudentResultSheetPage() {
 
               {/* Center School Details */}
               <div className="text-center flex-1 min-w-0">
-                <h1 className="text-base sm:text-2xl md:text-3xl font-serif font-black tracking-tight text-emerald-950 uppercase leading-tight">
+                <h1 className="text-base sm:text-2xl md:text-3xl print:text-lg font-serif font-black tracking-tight text-emerald-950 uppercase leading-tight">
                   MATHAL INTERNATIONAL SCHOOLS
                 </h1>
-                <p className="text-[9px] sm:text-xs md:text-sm font-bold text-emerald-800 tracking-wider uppercase mt-0.5 sm:mt-1 truncate">
+                <p className="text-[9px] sm:text-xs md:text-sm print:text-[10px] font-bold text-emerald-800 tracking-wider uppercase mt-0.5 sm:mt-1 print:mt-0 truncate">
                   {report.section === "PRIMARY"
                     ? "PRIMARY & NURSERY WING"
                     : "SECONDARY & HIGH SCHOOL WING"}
                 </p>
-                <p className="text-[8px] sm:text-[11px] font-serif italic text-amber-800 font-semibold mt-0.5 hidden xs:block">
+                <p className="text-[8px] sm:text-[11px] print:text-[9px] font-serif italic text-amber-800 font-semibold mt-0.5 hidden xs:block print:block">
                   &ldquo;Knowledge is Light &bull; Virtue and Excellence&rdquo;
                 </p>
-                <p className="text-[8px] sm:text-[10px] text-slate-600 mt-0.5 sm:mt-1 font-medium hidden sm:block">
+                <p className="text-[8px] sm:text-[10px] print:text-[8px] text-slate-600 mt-0.5 sm:mt-1 print:mt-0 font-medium hidden sm:block print:block">
                   12 Crescent Avenue, GRA Extension &bull; Tel: +234 803 123 4567, +234 802 987 6543
                 </p>
-                <p className="text-[8px] sm:text-[10px] text-slate-600 font-medium hidden sm:block">
+                <p className="text-[8px] sm:text-[10px] print:text-[8px] text-slate-600 font-medium hidden sm:block print:block">
                   Email: info@mathal.edu.ng &bull; Web: www.mathal.edu.ng
                 </p>
               </div>
 
               {/* Right Pupil Photo / Passport Frame */}
-              <div className="flex-shrink-0 w-14 h-16 sm:w-22 sm:h-26 md:w-24 md:h-28 rounded-xl border-2 border-emerald-950/20 bg-white p-1 shadow-sm overflow-hidden flex flex-col items-center justify-center relative group">
+              <div className="flex-shrink-0 w-14 h-16 sm:w-22 sm:h-26 md:w-24 md:h-28 print:w-16 print:h-20 rounded-xl print:rounded-lg border-2 border-emerald-950/20 bg-white p-1 shadow-sm overflow-hidden flex flex-col items-center justify-center relative group">
                 {student.passportPhoto ? (
                   <img
                     src={student.passportPhoto}
                     alt={`${student.firstName} ${student.lastName} Passport`}
-                    className="w-full h-full object-cover rounded-lg"
+                    className="w-full h-full object-cover rounded-lg print:rounded-md"
                   />
                 ) : (
                   <div className="w-full h-full rounded-lg bg-slate-50 flex flex-col items-center justify-center p-0.5 sm:p-1 text-center text-[8px] sm:text-[10px] text-slate-400">
@@ -416,16 +416,16 @@ export default function StudentResultSheetPage() {
             </div>
 
             {/* Document Title Banner */}
-            <div className="mt-3 sm:mt-4 py-1.5 px-3 sm:px-4 bg-[#0B1A36] text-white rounded-lg flex flex-col xs:flex-row items-center justify-between gap-1 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center xs:text-left">
+            <div className="mt-3 sm:mt-4 print:mt-1.5 py-1 sm:py-1.5 print:py-1 px-3 sm:px-4 print:px-3 bg-[#0B1A36] text-white rounded-lg flex flex-col xs:flex-row items-center justify-between gap-1 text-[10px] sm:text-xs print:text-[10px] font-bold uppercase tracking-wider text-center xs:text-left">
               <span>CONTINUOUS ASSESSMENT &amp; REPORT SHEET</span>
-              <span className="text-amber-300 font-mono text-[10px] sm:text-xs">
+              <span className="text-amber-300 font-mono text-[10px] sm:text-xs print:text-[10px]">
                 {report.session} &bull; {report.term}
               </span>
             </div>
           </div>
 
           {/* Student Profile & Bio-Data Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 text-xs bg-slate-50/80 p-3 sm:p-3.5 rounded-xl border border-slate-200">
+          <div className="grid grid-cols-2 sm:grid-cols-4 print:grid-cols-4 gap-2 sm:gap-3 print:gap-1.5 text-xs print:text-[9.5px] bg-slate-50/80 print:bg-slate-50 p-3 sm:p-3.5 print:p-2 rounded-xl print:rounded-lg border border-slate-200">
             <div>
               <span className="text-[9px] sm:text-[10px] text-slate-500 uppercase font-semibold block">
                 Pupil / Student Name
@@ -495,25 +495,25 @@ export default function StudentResultSheetPage() {
           </div>
 
           {/* Academic Cognitive Domain Scores Table */}
-          <div className="border border-slate-300 rounded-xl overflow-x-auto shadow-xs">
-            <table className="w-full text-left text-xs border-collapse min-w-[540px] sm:min-w-full">
-              <thead className="bg-emerald-900 text-white font-bold text-[11px] uppercase tracking-wider">
+          <div className="border border-slate-300 rounded-xl print:rounded-lg overflow-x-auto shadow-xs">
+            <table className="w-full text-left text-xs print:text-[8pt] border-collapse min-w-[540px] sm:min-w-full">
+              <thead className="bg-emerald-900 text-white font-bold text-[11px] print:text-[8pt] uppercase tracking-wider">
                 <tr>
-                  <th className="py-2.5 px-3">Curriculum Subject</th>
-                  <th className="py-2.5 px-2 text-center">CA 1 (20)</th>
-                  <th className="py-2.5 px-2 text-center">CA 2 (20)</th>
-                  <th className="py-2.5 px-2 text-center">Exam (60)</th>
-                  <th className="py-2.5 px-2 text-center bg-emerald-950 text-amber-300">
+                  <th className="py-2.5 sm:py-2.5 print:py-1 px-3 print:px-2">Curriculum Subject</th>
+                  <th className="py-2.5 sm:py-2.5 print:py-1 px-2 text-center">CA 1 (20)</th>
+                  <th className="py-2.5 sm:py-2.5 print:py-1 px-2 text-center">CA 2 (20)</th>
+                  <th className="py-2.5 sm:py-2.5 print:py-1 px-2 text-center">Exam (60)</th>
+                  <th className="py-2.5 sm:py-2.5 print:py-1 px-2 text-center bg-emerald-950 text-amber-300">
                     Total (100)
                   </th>
-                  <th className="py-2.5 px-2 text-center">Grade</th>
-                  <th className="py-2.5 px-3">Remarks / Performance Summary</th>
+                  <th className="py-2.5 sm:py-2.5 print:py-1 px-2 text-center">Grade</th>
+                  <th className="py-2.5 sm:py-2.5 print:py-1 px-3 print:px-2">Remarks / Performance Summary</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {report.scores.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400">
+                    <td colSpan={7} className="py-8 print:py-3 text-center text-slate-400">
                       No assessment scores recorded for this term yet.
                     </td>
                   </tr>
@@ -530,21 +530,21 @@ export default function StudentResultSheetPage() {
 
                     return (
                       <tr key={sc.id} className="hover:bg-slate-50">
-                        <td className="py-2 px-3 font-bold text-slate-900">
+                        <td className="py-2 sm:py-2 print:py-0.5 px-3 print:px-2 font-bold text-slate-900">
                           {sc.subjectName}
                         </td>
-                        <td className="py-2 px-2 text-center">{sc.ca1}</td>
-                        <td className="py-2 px-2 text-center">{sc.ca2}</td>
-                        <td className="py-2 px-2 text-center">{sc.exam}</td>
-                        <td className="py-2 px-2 text-center font-black text-slate-950 bg-emerald-50 text-sm">
+                        <td className="py-2 sm:py-2 print:py-0.5 px-2 text-center">{sc.ca1}</td>
+                        <td className="py-2 sm:py-2 print:py-0.5 px-2 text-center">{sc.ca2}</td>
+                        <td className="py-2 sm:py-2 print:py-0.5 px-2 text-center">{sc.exam}</td>
+                        <td className="py-2 sm:py-2 print:py-0.5 px-2 text-center font-black text-slate-950 bg-emerald-50 text-sm print:text-[8.5pt]">
                           {sc.total}
                         </td>
-                        <td className="py-2 px-2 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[10px] ${gradeBg}`}>
+                        <td className="py-2 sm:py-2 print:py-0.5 px-2 text-center">
+                          <span className={`px-2 py-0.5 print:px-1.5 print:py-0 rounded text-[10px] print:text-[7.5pt] ${gradeBg}`}>
                             {sc.grade}
                           </span>
                         </td>
-                        <td className="py-2 px-3 text-slate-700 font-medium">
+                        <td className="py-2 sm:py-2 print:py-0.5 px-3 print:px-2 text-slate-700 font-medium">
                           {sc.remark}
                         </td>
                       </tr>
@@ -552,15 +552,15 @@ export default function StudentResultSheetPage() {
                   })
                 )}
               </tbody>
-              <tfoot className="bg-slate-100 border-t-2 border-slate-300 font-bold text-xs">
+              <tfoot className="bg-slate-100 border-t-2 border-slate-300 font-bold text-xs print:text-[8pt]">
                 <tr>
-                  <td colSpan={4} className="py-2 px-3 text-right text-slate-700 uppercase">
+                  <td colSpan={4} className="py-2 print:py-1 px-3 print:px-2 text-right text-slate-700 uppercase">
                     Grand Total Score: <strong>{report.totalScore}</strong> &bull; Overall Average:
                   </td>
-                  <td className="py-2 px-2 text-center font-black text-emerald-950 text-sm bg-amber-100">
+                  <td className="py-2 print:py-1 px-2 text-center font-black text-emerald-950 text-sm print:text-[8.5pt] bg-amber-100">
                     {report.averageScore}%
                   </td>
-                  <td colSpan={2} className="py-2 px-3 text-slate-700">
+                  <td colSpan={2} className="py-2 print:py-1 px-3 print:px-2 text-slate-700">
                     Grade Key: A(75-100) B(65-74) C(50-64) D(45-49) E(40-44) F(0-39)
                   </td>
                 </tr>
@@ -571,10 +571,10 @@ export default function StudentResultSheetPage() {
           {/* =========================================================================
               Behavioral & Psychomotor Skills Rating Tables (Teacher Pickable)
               ========================================================================= */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-4 print:gap-2">
             {/* Affective Traits */}
-            <div className="border border-slate-300 rounded-xl overflow-hidden bg-white/90 shadow-xs">
-              <div className="bg-emerald-950 text-white font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 flex items-center justify-between">
+            <div className="border border-slate-300 rounded-xl print:rounded-lg overflow-hidden bg-white/90 shadow-xs">
+              <div className="bg-emerald-950 text-white font-bold text-[10px] print:text-[8pt] uppercase tracking-wider py-1.5 print:py-0.5 px-3 print:px-2 flex items-center justify-between">
                 <span>Affective Domain (Character &amp; Behavior)</span>
                 {canRate && (
                   <span className="text-[9px] text-amber-300 font-normal no-print">
@@ -582,9 +582,9 @@ export default function StudentResultSheetPage() {
                   </span>
                 )}
               </div>
-              <div className="p-2.5 divide-y divide-slate-100 text-[11px]">
+              <div className="p-2.5 print:p-1.5 divide-y divide-slate-100 text-[11px] print:text-[8pt]">
                 {Object.entries(displayAffective).map(([trait, rating]) => (
-                  <div key={trait} className="py-1.5 flex items-center justify-between gap-2">
+                  <div key={trait} className="py-1.5 print:py-0.5 flex items-center justify-between gap-2">
                     <span className="text-slate-800 font-medium">{trait}</span>
                     <div className="flex gap-1 items-center flex-shrink-0">
                       {[1, 2, 3, 4, 5].map((val) => {
@@ -595,9 +595,9 @@ export default function StudentResultSheetPage() {
                             key={val}
                             onClick={() => handleAffectiveChange(trait, val)}
                             title={`${trait}: ${val} (${RATING_SCALE.find((r) => r.value === val)?.label})`}
-                            className={`w-7 h-7 sm:w-6 sm:h-6 rounded-md text-[11px] sm:text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer ${
+                            className={`w-7 h-7 sm:w-6 sm:h-6 print:w-4 print:h-4 rounded-md print:rounded text-[11px] sm:text-[10px] print:text-[7pt] font-bold flex items-center justify-center transition-all cursor-pointer ${
                               isSelected
-                                ? "bg-emerald-800 text-white shadow-sm ring-2 ring-emerald-500 font-black scale-105"
+                                ? "bg-emerald-800 text-white shadow-sm ring-2 ring-emerald-500 font-black scale-105 print:scale-100"
                                 : "bg-slate-100 text-slate-500 hover:bg-emerald-100 hover:text-emerald-900 border border-slate-200"
                             }`}
                           >
@@ -606,7 +606,7 @@ export default function StudentResultSheetPage() {
                         ) : (
                           <span
                             key={val}
-                            className={`w-5 h-5 sm:w-4 sm:h-4 rounded text-[10px] sm:text-[9px] font-bold flex items-center justify-center ${
+                            className={`w-5 h-5 sm:w-4 sm:h-4 print:w-4 print:h-4 rounded print:rounded text-[10px] sm:text-[9px] print:text-[7pt] font-bold flex items-center justify-center ${
                               isSelected
                                 ? "bg-emerald-800 text-white font-bold"
                                 : "text-slate-300"
@@ -623,8 +623,8 @@ export default function StudentResultSheetPage() {
             </div>
 
             {/* Psychomotor Skills */}
-            <div className="border border-slate-300 rounded-xl overflow-hidden bg-white/90 shadow-xs">
-              <div className="bg-emerald-950 text-white font-bold text-[10px] uppercase tracking-wider py-1.5 px-3 flex items-center justify-between">
+            <div className="border border-slate-300 rounded-xl print:rounded-lg overflow-hidden bg-white/90 shadow-xs">
+              <div className="bg-emerald-950 text-white font-bold text-[10px] print:text-[8pt] uppercase tracking-wider py-1.5 print:py-0.5 px-3 print:px-2 flex items-center justify-between">
                 <span>Psychomotor Domain (Practical &amp; Physical)</span>
                 {canRate && (
                   <span className="text-[9px] text-amber-300 font-normal no-print">
@@ -632,9 +632,9 @@ export default function StudentResultSheetPage() {
                   </span>
                 )}
               </div>
-              <div className="p-2.5 divide-y divide-slate-100 text-[11px]">
+              <div className="p-2.5 print:p-1.5 divide-y divide-slate-100 text-[11px] print:text-[8pt]">
                 {Object.entries(displayPsychomotor).map(([skill, rating]) => (
-                  <div key={skill} className="py-1.5 flex items-center justify-between gap-2">
+                  <div key={skill} className="py-1.5 print:py-0.5 flex items-center justify-between gap-2">
                     <span className="text-slate-800 font-medium">{skill}</span>
                     <div className="flex gap-1 items-center flex-shrink-0">
                       {[1, 2, 3, 4, 5].map((val) => {
@@ -645,9 +645,9 @@ export default function StudentResultSheetPage() {
                             key={val}
                             onClick={() => handlePsychomotorChange(skill, val)}
                             title={`${skill}: ${val} (${RATING_SCALE.find((r) => r.value === val)?.label})`}
-                            className={`w-7 h-7 sm:w-6 sm:h-6 rounded-md text-[11px] sm:text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer ${
+                            className={`w-7 h-7 sm:w-6 sm:h-6 print:w-4 print:h-4 rounded-md print:rounded text-[11px] sm:text-[10px] print:text-[7pt] font-bold flex items-center justify-center transition-all cursor-pointer ${
                               isSelected
-                                ? "bg-amber-600 text-white shadow-sm ring-2 ring-amber-400 font-black scale-105"
+                                ? "bg-amber-600 text-white shadow-sm ring-2 ring-amber-400 font-black scale-105 print:scale-100"
                                 : "bg-slate-100 text-slate-500 hover:bg-amber-100 hover:text-amber-900 border border-slate-200"
                             }`}
                           >
@@ -656,7 +656,7 @@ export default function StudentResultSheetPage() {
                         ) : (
                           <span
                             key={val}
-                            className={`w-5 h-5 sm:w-4 sm:h-4 rounded text-[10px] sm:text-[9px] font-bold flex items-center justify-center ${
+                            className={`w-5 h-5 sm:w-4 sm:h-4 print:w-4 print:h-4 rounded print:rounded text-[10px] sm:text-[9px] print:text-[7pt] font-bold flex items-center justify-center ${
                               isSelected
                                 ? "bg-amber-600 text-white font-bold"
                                 : "text-slate-300"
@@ -674,7 +674,7 @@ export default function StudentResultSheetPage() {
           </div>
 
           {/* Rating Scale Legend */}
-          <div className="text-[10px] text-slate-500 flex flex-wrap items-center justify-center gap-4 bg-slate-50 py-1.5 px-3 rounded-lg border border-slate-200">
+          <div className="text-[10px] print:text-[8pt] text-slate-500 flex flex-wrap items-center justify-center gap-3 sm:gap-4 print:gap-2.5 bg-slate-50 py-1.5 print:py-0.5 px-3 print:px-2 rounded-lg border border-slate-200">
             <span className="font-bold text-slate-700">Rating Key:</span>
             {RATING_SCALE.map((s) => (
               <span key={s.value} className="font-medium">
@@ -684,9 +684,9 @@ export default function StudentResultSheetPage() {
           </div>
 
           {/* Remarks & Endorsements */}
-          <div className="border border-slate-300 rounded-xl p-4 bg-slate-50/80 space-y-3 text-xs">
+          <div className="border border-slate-300 rounded-xl print:rounded-lg p-3 sm:p-4 print:p-2 bg-slate-50/80 print:bg-slate-50 space-y-2.5 sm:space-y-3 print:space-y-1.5 text-xs print:text-[8.5pt]">
             <div>
-              <span className="font-bold text-slate-700 block text-[11px] uppercase tracking-wider mb-1">
+              <span className="font-bold text-slate-700 block text-[11px] print:text-[8.5pt] uppercase tracking-wider mb-1 print:mb-0.5">
                 Class Teacher&apos;s Remarks:
               </span>
               {canRate ? (
@@ -696,8 +696,12 @@ export default function StudentResultSheetPage() {
                     value={teacherRemark}
                     onChange={(e) => setTeacherRemark(e.target.value)}
                     placeholder="Enter customized class teacher remark..."
-                    className="w-full text-xs font-serif italic p-2.5 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-emerald-500"
+                    className="w-full text-xs font-serif italic p-2.5 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-emerald-500 no-print"
                   />
+                  {/* Print view for teacher remark */}
+                  <p className="hidden print:block font-serif italic text-slate-800 text-[8.5pt] leading-tight">
+                    &ldquo;{teacherRemark || report.teacherRemark}&rdquo;
+                  </p>
                   {/* Quick Suggestion Chips */}
                   <div className="flex flex-wrap gap-1.5 no-print">
                     <span className="text-[10px] font-semibold text-slate-400 self-center">Quick remark:</span>
@@ -719,12 +723,12 @@ export default function StudentResultSheetPage() {
                   </div>
                 </div>
               ) : (
-                <p className="mt-1 font-serif italic text-slate-800 text-sm leading-snug">
+                <p className="mt-1 print:mt-0 font-serif italic text-slate-800 text-sm print:text-[8.5pt] leading-snug print:leading-tight">
                   &ldquo;{teacherRemark || report.teacherRemark}&rdquo;
                 </p>
               )}
 
-              <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200">
+              <div className="mt-2 print:mt-1 flex items-center justify-between text-[11px] print:text-[8pt] text-slate-500 pt-1 print:pt-0.5 border-t border-slate-200">
                 <span>
                   Teacher: <strong>{user?.role === "TEACHER" ? user.name : "Class Teacher"}</strong>
                 </span>
@@ -734,8 +738,8 @@ export default function StudentResultSheetPage() {
               </div>
             </div>
 
-            <div className="pt-2 border-t border-slate-200">
-              <span className="font-bold text-slate-700 block text-[11px] uppercase tracking-wider mb-1">
+            <div className="pt-2 print:pt-1 border-t border-slate-200">
+              <span className="font-bold text-slate-700 block text-[11px] print:text-[8.5pt] uppercase tracking-wider mb-1 print:mb-0.5">
                 Principal / Headmaster&apos;s Remarks:
               </span>
               {canRate ? (
@@ -745,8 +749,12 @@ export default function StudentResultSheetPage() {
                     value={principalRemark}
                     onChange={(e) => setPrincipalRemark(e.target.value)}
                     placeholder="Enter official principal/headmaster terminal remark and endorsement..."
-                    className="w-full text-xs font-serif italic p-2.5 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-amber-500"
+                    className="w-full text-xs font-serif italic p-2.5 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-amber-500 no-print"
                   />
+                  {/* Print view for principal remark */}
+                  <p className="hidden print:block font-serif italic text-slate-800 text-[8.5pt] leading-tight">
+                    &ldquo;{principalRemark || report.principalRemark}&rdquo;
+                  </p>
                   {/* Quick Suggestion Chips for Principal */}
                   <div className="flex flex-wrap gap-1.5 no-print">
                     <span className="text-[10px] font-semibold text-slate-400 self-center">Quick endorsement:</span>
@@ -769,36 +777,36 @@ export default function StudentResultSheetPage() {
                   </div>
                 </div>
               ) : (
-                <p className="mt-1 font-serif italic text-slate-800 text-sm leading-snug">
+                <p className="mt-1 print:mt-0 font-serif italic text-slate-800 text-sm print:text-[8.5pt] leading-snug print:leading-tight">
                   &ldquo;{principalRemark || report.principalRemark}&rdquo;
                 </p>
               )}
 
-              <div className="mt-3 flex items-end justify-between text-[11px] text-slate-600 pt-1 border-t border-slate-200">
-                <div className="self-end pb-1">
+              <div className="mt-2.5 print:mt-1 flex items-end justify-between text-[11px] print:text-[8pt] text-slate-600 pt-1 print:pt-0.5 border-t border-slate-200">
+                <div className="self-end pb-0.5">
                   Next Term Resumption Date:{" "}
                   <strong className="text-emerald-950 font-bold">{report.nextTermBegins}</strong>
                 </div>
                 <div className="text-right flex flex-col items-end">
                   {/* Director / Principal Official Signature */}
-                  <div className="h-11 sm:h-12 w-32 flex items-center justify-center mb-0.5">
+                  <div className="h-9 sm:h-11 print:h-8 w-28 sm:w-32 print:w-26 flex items-center justify-center mb-0.5">
                     <img
                       src="/mth-sig.jpg"
                       alt="Director / Principal's Official Signature"
                       className="h-full w-full object-contain mix-blend-multiply drop-shadow-xs"
                     />
                   </div>
-                  <div className="font-serif font-black text-emerald-950 uppercase text-[10px] tracking-wide border-t border-slate-400 pt-0.5 min-w-[130px] text-center">
+                  <div className="font-serif font-black text-emerald-950 uppercase text-[10px] print:text-[8pt] tracking-wide border-t border-slate-400 pt-0.5 min-w-[120px] print:min-w-[110px] text-center">
                     Mrs. Dosunmu Adetutu
                   </div>
-                  <div className="text-[9px] text-slate-500 text-center min-w-[130px]">Director / Principal</div>
+                  <div className="text-[9px] print:text-[7pt] text-slate-500 text-center min-w-[120px] print:min-w-[110px]">Director / Principal</div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Official Stamp & Security Seal */}
-          <div className="pt-2 flex items-center justify-between text-[10px] text-slate-400 border-t border-slate-200">
+          <div className="pt-1.5 sm:pt-2 print:pt-1 flex items-center justify-between text-[10px] print:text-[7.5pt] text-slate-400 border-t border-slate-200">
             <div>
               Mathal MIS Official Certified Document &bull; Generated on{" "}
               {new Date().toLocaleDateString("en-US", {
@@ -808,7 +816,7 @@ export default function StudentResultSheetPage() {
               })}
             </div>
             <div className="flex items-center gap-1 font-semibold text-emerald-800">
-              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+              <CheckCircle className="w-3.5 h-3.5 print:w-3 print:h-3 text-emerald-600" />
               Verified Authentic School Record
             </div>
           </div>
