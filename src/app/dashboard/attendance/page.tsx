@@ -27,7 +27,8 @@ export default function AttendancePage() {
   const [attendanceMap, setAttendanceMap] = useState<
     Record<string, { status: "PRESENT" | "ABSENT" | "LATE" | "EXCUSED"; remarks: string }>
   >({});
-  const [savedNotice, setSavedNotice] = useState(false);
+  const [savedNotice, setSavedNotice] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const { user } = useAuth();
   const isTeacher = user?.role === "TEACHER";
@@ -37,25 +38,56 @@ export default function AttendancePage() {
       ? user.assignedClasses.split(",").map((c) => c.trim()).filter(Boolean)
       : null;
 
+  const hasPrimaryClasses =
+    !isTeacher || Boolean(teacherClasses && teacherClasses.some((c) => PRIMARY_CLASSES.includes(c)));
+  const hasSecondaryClasses =
+    !isTeacher || Boolean(teacherClasses && teacherClasses.some((c) => SECONDARY_CLASSES.includes(c)));
+
+  // Auto-switch to assigned wing if teacher is only assigned to one section
+  useEffect(() => {
+    if (isTeacher && teacherClasses && teacherClasses.length > 0) {
+      if (hasSecondaryClasses && !hasPrimaryClasses && section !== "SECONDARY") {
+        setSection("SECONDARY");
+      } else if (hasPrimaryClasses && !hasSecondaryClasses && section !== "PRIMARY") {
+        setSection("PRIMARY");
+      }
+    }
+  }, [isTeacher, user?.assignedClasses, hasPrimaryClasses, hasSecondaryClasses, section]);
+
   const allSecClasses = section === "PRIMARY" ? PRIMARY_CLASSES : SECONDARY_CLASSES;
-  const displayedClasses =
-    isTeacher && teacherClasses && teacherClasses.length > 0
-      ? allSecClasses.filter((c) => teacherClasses.includes(c)).length > 0
-        ? allSecClasses.filter((c) => teacherClasses.includes(c))
-        : teacherClasses
-      : allSecClasses;
+  // Strictly filter to assigned classes for teachers. Zero fallback to unassigned classes.
+  const displayedClasses = isTeacher
+    ? teacherClasses && teacherClasses.length > 0
+      ? teacherClasses.filter((c) => allSecClasses.includes(c))
+      : []
+    : allSecClasses;
 
   const classesKey = displayedClasses.join(",");
 
   useEffect(() => {
     if (displayedClasses.length > 0 && !displayedClasses.includes(classLevel)) {
       setClassLevel(displayedClasses[0]);
+    } else if (displayedClasses.length === 0) {
+      setClassLevel("");
     }
-  }, [classesKey, classLevel]);
+  }, [classesKey, classLevel, displayedClasses]);
 
   // Load students and existing attendance from Neon DB
   useEffect(() => {
     async function load() {
+      // If teacher has no assigned classes in this section, clear student list
+      if (isTeacher && displayedClasses.length === 0) {
+        setStudents([]);
+        setAttendanceMap({});
+        return;
+      }
+
+      if (!classLevel) {
+        setStudents([]);
+        setAttendanceMap({});
+        return;
+      }
+
       try {
         const [stuRes, attRes] = await Promise.all([
           fetch(`/api/students?section=${section}&classLevel=${encodeURIComponent(classLevel)}&arm=${arm}`),
@@ -100,7 +132,7 @@ export default function AttendancePage() {
     }
 
     load();
-  }, [section, classLevel, arm, date]);
+  }, [section, classLevel, arm, date, isTeacher, displayedClasses.length]);
 
   const handleStatusChange = (
     studentId: string,
@@ -136,6 +168,9 @@ export default function AttendancePage() {
   };
 
   const handleSave = async () => {
+    if (isTeacher && displayedClasses.length === 0) return;
+    if (!classLevel || students.length === 0) return;
+
     const records = students.map((st) => ({
       studentId: st.id,
       classLevel,
@@ -151,14 +186,21 @@ export default function AttendancePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ records }),
       });
+      const data = await res.json();
       if (res.ok) {
-        setSavedNotice(true);
-        setTimeout(() => setSavedNotice(false), 4000);
+        setSavedNotice(
+          data.message ||
+            `Attendance register for ${classLevel} (${arm}) on ${date} saved successfully!`
+        );
+        setSaveError(null);
+        setTimeout(() => setSavedNotice(null), 4000);
+      } else {
+        setSaveError(data.error || "Failed to save attendance records.");
+        setTimeout(() => setSaveError(null), 6000);
       }
-    } catch {
-      dataStore.saveAttendance(records as any);
-      setSavedNotice(true);
-      setTimeout(() => setSavedNotice(false), 4000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to save attendance.");
+      setTimeout(() => setSaveError(null), 6000);
     }
   };
 
@@ -188,13 +230,15 @@ export default function AttendancePage() {
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
             onClick={() => handleMarkAll("PRESENT")}
-            className="flex-1 sm:flex-initial px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors cursor-pointer min-h-[44px] text-center"
+            disabled={displayedClasses.length === 0 || students.length === 0}
+            className="flex-1 sm:flex-initial px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition-colors cursor-pointer min-h-[44px] text-center disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Mark All Present
           </button>
           <button
             onClick={handleSave}
-            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer min-h-[44px]"
+            disabled={displayedClasses.length === 0 || students.length === 0}
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer min-h-[44px] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Save className="w-4 h-4 text-amber-300" />
             Save Register
@@ -205,9 +249,14 @@ export default function AttendancePage() {
       {savedNotice && (
         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center gap-2 shadow-sm animate-fade-in">
           <Check className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-          <span>
-            Attendance register for <strong>{classLevel} ({arm})</strong> on <strong>{date}</strong> saved successfully!
-          </span>
+          <span>{savedNotice}</span>
+        </div>
+      )}
+
+      {saveError && (
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-center gap-2 shadow-sm animate-fade-in">
+          <AlertCircle className="w-5 h-5 text-rose-600 flex-shrink-0" />
+          <span>{saveError}</span>
         </div>
       )}
 
@@ -251,12 +300,17 @@ export default function AttendancePage() {
             onChange={(e) => {
               const sec = e.target.value as "PRIMARY" | "SECONDARY";
               setSection(sec);
-              setClassLevel(sec === "PRIMARY" ? "Basic 4" : "JSS 2");
             }}
-            className="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
+            disabled={isTeacher && (!hasPrimaryClasses || !hasSecondaryClasses)}
+            className="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100 disabled:text-slate-500"
           >
-            <option value="PRIMARY">Primary Wing</option>
-            <option value="SECONDARY">Secondary Wing</option>
+            {(!isTeacher || hasPrimaryClasses) && <option value="PRIMARY">Primary Wing</option>}
+            {(!isTeacher || hasSecondaryClasses) && <option value="SECONDARY">Secondary Wing</option>}
+            {isTeacher && !hasPrimaryClasses && !hasSecondaryClasses && (
+              <option value="PRIMARY" disabled>
+                No Section Assigned
+              </option>
+            )}
           </select>
         </div>
 
@@ -266,20 +320,33 @@ export default function AttendancePage() {
             <label className="block text-xs font-semibold text-slate-600">
               Class Level
             </label>
-            {isTeacher && teacherClasses && (
-              <span className="text-[10px] text-emerald-600 font-bold">Assigned</span>
+            {isTeacher && (
+              <span
+                className={`text-[10px] font-bold ${
+                  displayedClasses.length > 0 ? "text-emerald-600" : "text-amber-600"
+                }`}
+              >
+                {displayedClasses.length > 0 ? "Assigned Only" : "Unassigned"}
+              </span>
             )}
           </div>
           <select
             value={classLevel}
             onChange={(e) => setClassLevel(e.target.value)}
-            className="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
+            disabled={displayedClasses.length === 0}
+            className="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100 disabled:text-slate-500"
           >
-            {displayedClasses.map((c) => (
-              <option key={c} value={c}>
-                {c}
+            {displayedClasses.length === 0 ? (
+              <option value="" disabled>
+                No classes assigned
               </option>
-            ))}
+            ) : (
+              displayedClasses.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))
+            )}
           </select>
         </div>
 
@@ -291,7 +358,8 @@ export default function AttendancePage() {
           <select
             value={arm}
             onChange={(e) => setArm(e.target.value)}
-            className="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
+            disabled={displayedClasses.length === 0}
+            className="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100 disabled:text-slate-500"
           >
             {CLASS_ARMS.map((a) => (
               <option key={a} value={a}>
@@ -360,7 +428,13 @@ export default function AttendancePage() {
         <div className="block md:hidden divide-y divide-slate-100">
           {students.length === 0 ? (
             <div className="px-4 py-8 text-center text-slate-400 text-xs">
-              No pupils or students enrolled in {classLevel} ({arm}) yet.
+              {isTeacher && (!teacherClasses || teacherClasses.length === 0)
+                ? "No classes have been assigned to your teaching profile by the administration."
+                : isTeacher && displayedClasses.length === 0
+                ? "No classes assigned to you in the selected school wing."
+                : !classLevel
+                ? "Please select an assigned class."
+                : `No pupils or students enrolled in ${classLevel} (${arm}) yet.`}
             </div>
           ) : (
             students.map((st) => {
@@ -460,7 +534,13 @@ export default function AttendancePage() {
               {students.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
-                    No pupils or students enrolled in {classLevel} ({arm}) yet.
+                    {isTeacher && (!teacherClasses || teacherClasses.length === 0)
+                      ? "No classes have been assigned to your teaching profile by the administration."
+                      : isTeacher && displayedClasses.length === 0
+                      ? "No classes assigned to you in the selected school wing."
+                      : !classLevel
+                      ? "Please select an assigned class."
+                      : `No pupils or students enrolled in ${classLevel} (${arm}) yet.`}
                   </td>
                 </tr>
               ) : (

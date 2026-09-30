@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { computeGrade } from "@/lib/grading";
+import {
+  getAuthUserFromRequest,
+  isClassAllocated,
+  isSubjectAllocated,
+  parseAllocations,
+} from "@/lib/auth";
 
 export async function GET(req: Request) {
   try {
+    const authUser = await getAuthUserFromRequest(req);
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get("studentId");
     const subjectId = searchParams.get("subjectId");
@@ -13,15 +20,81 @@ export async function GET(req: Request) {
     const arm = searchParams.get("arm");
 
     const where: any = {};
+
+    // 1. Role-based restrictions
+    if (authUser?.role === "TEACHER") {
+      const assignedClasses = parseAllocations(authUser.assignedClasses);
+      const assignedSubjects = parseAllocations(authUser.assignedSubjects);
+
+      if (assignedClasses.length === 0 || assignedSubjects.length === 0) {
+        return NextResponse.json({ success: true, scores: [] });
+      }
+
+      // Validate class filter
+      if (classLevel) {
+        if (!isClassAllocated(authUser.assignedClasses, classLevel)) {
+          return NextResponse.json(
+            {
+              error: `Access denied. You are only assigned to teach: ${assignedClasses.join(", ")}.`,
+            },
+            { status: 403 }
+          );
+        }
+        where.student = { ...(where.student || {}), classLevel };
+      } else {
+        where.student = { ...(where.student || {}), classLevel: { in: assignedClasses } };
+      }
+
+      // Validate subject filter
+      if (subjectId) {
+        const resolvedSubj = await prisma.subject.findFirst({
+          where: {
+            OR: [
+              { id: subjectId },
+              { code: { equals: subjectId, mode: "insensitive" } },
+              { name: { equals: subjectId, mode: "insensitive" } },
+            ],
+          },
+          select: { id: true, name: true, code: true },
+        });
+
+        if (
+          !resolvedSubj ||
+          (!isSubjectAllocated(authUser.assignedSubjects, resolvedSubj.name) &&
+            !isSubjectAllocated(authUser.assignedSubjects, resolvedSubj.code))
+        ) {
+          return NextResponse.json(
+            {
+              error: `Access denied. You are only assigned to subject(s): ${assignedSubjects.join(", ")}.`,
+            },
+            { status: 403 }
+          );
+        }
+        where.subjectId = resolvedSubj.id;
+      } else {
+        where.subject = { name: { in: assignedSubjects } };
+      }
+    } else if (authUser?.role === "STUDENT") {
+      if (authUser.studentId) {
+        where.studentId = authUser.studentId;
+      } else {
+        return NextResponse.json({ success: true, scores: [] });
+      }
+    } else {
+      // ADMIN or public fallback
+      if (classLevel || arm) {
+        where.student = {};
+        if (classLevel) where.student.classLevel = classLevel;
+        if (arm) where.student.arm = arm;
+      }
+      if (subjectId) {
+        where.subjectId = subjectId;
+      }
+    }
+
     if (studentId) where.studentId = studentId;
-    if (subjectId) where.subjectId = subjectId;
     if (session) where.session = session;
     if (term) where.term = term;
-    if (classLevel || arm) {
-      where.student = {};
-      if (classLevel) where.student.classLevel = classLevel;
-      if (arm) where.student.arm = arm;
-    }
 
     const scores = await prisma.scoreRecord.findMany({
       where,
@@ -61,36 +134,31 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     // 1. Session & Role Verification against Neon DB
-    const nextHeaders: any = await import("next/headers");
-    const cookieStore = await nextHeaders.cookies();
-    const sessionCookie = cookieStore?.get?.("mathal_session")?.value;
-
-    if (!sessionCookie) {
+    const authUser = await getAuthUserFromRequest(req);
+    if (!authUser) {
       return NextResponse.json(
         { error: "Authentication required. Please log in as a teacher or administrator." },
         { status: 401 }
       );
     }
 
-    let sessionData: any;
-    try {
-      sessionData = JSON.parse(sessionCookie);
-    } catch {
-      return NextResponse.json({ error: "Invalid session cookie." }, { status: 401 });
-    }
-
-    if (!sessionData?.id) {
-      return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-    }
-
-    const authUser = await prisma.user.findUnique({
-      where: { id: sessionData.id },
-      select: { id: true, role: true, name: true, teacher: true },
-    });
-
-    if (!authUser || (authUser.role !== "TEACHER" && authUser.role !== "ADMIN")) {
+    if (authUser.role !== "TEACHER" && authUser.role !== "ADMIN") {
       return NextResponse.json(
         { error: "Forbidden. Only teachers and administrators are authorized to enter or modify scores." },
+        { status: 403 }
+      );
+    }
+
+    const isTeacher = authUser.role === "TEACHER";
+    const assignedClasses = parseAllocations(authUser.assignedClasses);
+    const assignedSubjects = parseAllocations(authUser.assignedSubjects);
+
+    if (isTeacher && (assignedClasses.length === 0 || assignedSubjects.length === 0)) {
+      return NextResponse.json(
+        {
+          error:
+            "Access denied. You do not have both classes and subjects assigned to your teaching profile. Please contact the administrator.",
+        },
         { status: 403 }
       );
     }
@@ -133,12 +201,22 @@ export async function POST(req: Request) {
             { admissionNo: { equals: item.studentId, mode: "insensitive" } },
           ],
         },
-        select: { id: true, firstName: true, lastName: true, admissionNo: true },
+        select: { id: true, firstName: true, lastName: true, admissionNo: true, classLevel: true },
       });
 
       if (!student) {
         console.warn(`Student not found in Neon DB: ${item.studentId}`);
         continue;
+      }
+
+      // Enforce teacher class restriction
+      if (isTeacher && !isClassAllocated(authUser.assignedClasses, student.classLevel)) {
+        return NextResponse.json(
+          {
+            error: `Access denied. You are not assigned to record scores for class "${student.classLevel}". Your assigned classes: ${assignedClasses.join(", ")}.`,
+          },
+          { status: 403 }
+        );
       }
 
       // Resolve subject in Neon DB (by ID, code, or name)
@@ -156,6 +234,20 @@ export async function POST(req: Request) {
       if (!subject) {
         console.warn(`Subject not found in Neon DB: ${item.subjectId}`);
         continue;
+      }
+
+      // Enforce teacher subject restriction
+      if (
+        isTeacher &&
+        !isSubjectAllocated(authUser.assignedSubjects, subject.name) &&
+        !isSubjectAllocated(authUser.assignedSubjects, subject.code)
+      ) {
+        return NextResponse.json(
+          {
+            error: `Access denied. You are not assigned to record scores for subject "${subject.name}". Your assigned subjects: ${assignedSubjects.join(", ")}.`,
+          },
+          { status: 403 }
+        );
       }
 
       // Validate & Clamp marks
@@ -215,9 +307,10 @@ export async function POST(req: Request) {
       });
 
       const totalScoreSum = studentAllScores.reduce((sum, s) => sum + s.total, 0);
-      const avgScore = studentAllScores.length > 0
-        ? Math.round((totalScoreSum / studentAllScores.length) * 10) / 10
-        : 0;
+      const avgScore =
+        studentAllScores.length > 0
+          ? Math.round((totalScoreSum / studentAllScores.length) * 10) / 10
+          : 0;
 
       await prisma.termReport.updateMany({
         where: { studentId: student.id, session, term },
@@ -249,3 +342,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

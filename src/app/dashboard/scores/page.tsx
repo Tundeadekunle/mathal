@@ -74,13 +74,29 @@ export default function ScoresPage() {
     (Boolean(teacherClasses && teacherClasses.length > 0) &&
       Boolean(teacherSubjects && teacherSubjects.length > 0));
 
+  const hasPrimaryClasses =
+    !isTeacher || Boolean(teacherClasses && teacherClasses.some((c) => PRIMARY_CLASSES.includes(c)));
+  const hasSecondaryClasses =
+    !isTeacher || Boolean(teacherClasses && teacherClasses.some((c) => SECONDARY_CLASSES.includes(c)));
+
+  // Auto-switch to assigned wing if teacher is only assigned to one section
+  useEffect(() => {
+    if (isTeacher && teacherClasses && teacherClasses.length > 0) {
+      if (hasSecondaryClasses && !hasPrimaryClasses && section !== "SECONDARY") {
+        setSection("SECONDARY");
+      } else if (hasPrimaryClasses && !hasSecondaryClasses && section !== "PRIMARY") {
+        setSection("PRIMARY");
+      }
+    }
+  }, [isTeacher, user?.assignedClasses, hasPrimaryClasses, hasSecondaryClasses, section]);
+
   const allSecClasses = section === "PRIMARY" ? PRIMARY_CLASSES : SECONDARY_CLASSES;
-  const displayedClasses =
-    isTeacher && teacherClasses && teacherClasses.length > 0
-      ? allSecClasses.filter((c) => teacherClasses.includes(c)).length > 0
-        ? allSecClasses.filter((c) => teacherClasses.includes(c))
-        : teacherClasses
-      : allSecClasses;
+  // Strictly filter to assigned classes for teachers. Zero fallback to unassigned classes.
+  const displayedClasses = isTeacher
+    ? teacherClasses && teacherClasses.length > 0
+      ? teacherClasses.filter((c) => allSecClasses.includes(c))
+      : []
+    : allSecClasses;
 
   useEffect(() => {
     async function loadSubjects() {
@@ -102,22 +118,28 @@ export default function ScoresPage() {
     loadSubjects();
   }, [section]);
 
-  const displayedSubjects =
-    isTeacher && teacherSubjects && teacherSubjects.length > 0
-      ? subjects.filter((s) => teacherSubjects.includes(s.name)).length > 0
-        ? subjects.filter((s) => teacherSubjects.includes(s.name))
-        : subjects
-      : subjects;
+  // Strictly filter to assigned subjects for teachers. Zero fallback to unassigned subjects.
+  const displayedSubjects = isTeacher
+    ? teacherSubjects && teacherSubjects.length > 0
+      ? subjects.filter(
+          (s) =>
+            teacherSubjects.some((ts) => ts.toLowerCase() === s.name.toLowerCase()) ||
+            teacherSubjects.some((ts) => ts.toLowerCase() === s.code.toLowerCase())
+        )
+      : []
+    : subjects;
 
   const classesKey = displayedClasses.join(",");
   const subjectsKey = displayedSubjects.map((s) => s.id).join(",");
 
-  // Keep classLevel and selectedSubjectId within displayed selections
+  // Keep classLevel and selectedSubjectId strictly within displayed selections
   useEffect(() => {
     if (displayedClasses.length > 0 && !displayedClasses.includes(classLevel)) {
       setClassLevel(displayedClasses[0]);
+    } else if (displayedClasses.length === 0) {
+      setClassLevel("");
     }
-  }, [classesKey, classLevel]);
+  }, [classesKey, classLevel, displayedClasses]);
 
   useEffect(() => {
     if (
@@ -125,10 +147,23 @@ export default function ScoresPage() {
       !displayedSubjects.some((s) => s.id === selectedSubjectId)
     ) {
       setSelectedSubjectId(displayedSubjects[0].id);
+    } else if (displayedSubjects.length === 0) {
+      setSelectedSubjectId("");
     }
-  }, [subjectsKey, selectedSubjectId]);
+  }, [subjectsKey, selectedSubjectId, displayedSubjects]);
 
   const loadClassScores = async () => {
+    // If teacher has no assigned classes or subjects in this section, clear scores
+    if (isTeacher && (displayedClasses.length === 0 || displayedSubjects.length === 0)) {
+      setScoreEntries([]);
+      return;
+    }
+
+    if (!classLevel || !selectedSubjectId) {
+      setScoreEntries([]);
+      return;
+    }
+
     try {
       // Also discover which classes have students
       fetch(`/api/students?section=${section}`)
@@ -391,8 +426,12 @@ export default function ScoresPage() {
 
         <button
           onClick={handleSaveAll}
-          disabled={isSavingAll || scoreEntries.length === 0}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all self-start sm:self-auto cursor-pointer disabled:opacity-50"
+          disabled={
+            isSavingAll ||
+            scoreEntries.length === 0 ||
+            (isTeacher && (displayedClasses.length === 0 || displayedSubjects.length === 0))
+          }
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all self-start sm:self-auto cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {isSavingAll ? (
             <>
@@ -459,12 +498,17 @@ export default function ScoresPage() {
             onChange={(e) => {
               const sec = e.target.value as "PRIMARY" | "SECONDARY";
               setSection(sec);
-              setClassLevel(sec === "PRIMARY" ? "Basic 1" : "JSS 1");
             }}
-            className="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
+            disabled={isTeacher && (!hasPrimaryClasses || !hasSecondaryClasses)}
+            className="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100 disabled:text-slate-500"
           >
-            <option value="PRIMARY">Primary Wing</option>
-            <option value="SECONDARY">Secondary Wing</option>
+            {(!isTeacher || hasPrimaryClasses) && <option value="PRIMARY">Primary Wing</option>}
+            {(!isTeacher || hasSecondaryClasses) && <option value="SECONDARY">Secondary Wing</option>}
+            {isTeacher && !hasPrimaryClasses && !hasSecondaryClasses && (
+              <option value="PRIMARY" disabled>
+                No Section Assigned
+              </option>
+            )}
           </select>
         </div>
 
@@ -474,20 +518,33 @@ export default function ScoresPage() {
             <label className="block text-xs font-semibold text-slate-600">
               Class Level
             </label>
-            {isTeacher && teacherClasses && (
-              <span className="text-[10px] text-emerald-600 font-bold">Assigned</span>
+            {isTeacher && (
+              <span
+                className={`text-[10px] font-bold ${
+                  displayedClasses.length > 0 ? "text-emerald-600" : "text-amber-600"
+                }`}
+              >
+                {displayedClasses.length > 0 ? "Assigned Only" : "Unassigned"}
+              </span>
             )}
           </div>
           <select
             value={classLevel}
             onChange={(e) => setClassLevel(e.target.value)}
-            className="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
+            disabled={displayedClasses.length === 0}
+            className="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100 disabled:text-slate-500"
           >
-            {displayedClasses.map((c) => (
-              <option key={c} value={c}>
-                {c} {classesWithStudents.includes(c) ? "• Enrolled" : ""}
+            {displayedClasses.length === 0 ? (
+              <option value="" disabled>
+                No classes assigned
               </option>
-            ))}
+            ) : (
+              displayedClasses.map((c) => (
+                <option key={c} value={c}>
+                  {c} {classesWithStudents.includes(c) ? "• Enrolled" : ""}
+                </option>
+              ))
+            )}
           </select>
         </div>
 
@@ -497,20 +554,33 @@ export default function ScoresPage() {
             <label className="block text-xs font-semibold text-slate-600">
               Subject
             </label>
-            {isTeacher && teacherSubjects && (
-              <span className="text-[10px] text-blue-600 font-bold">Assigned</span>
+            {isTeacher && (
+              <span
+                className={`text-[10px] font-bold ${
+                  displayedSubjects.length > 0 ? "text-blue-600" : "text-amber-600"
+                }`}
+              >
+                {displayedSubjects.length > 0 ? "Assigned Only" : "Unassigned"}
+              </span>
             )}
           </div>
           <select
             value={selectedSubjectId}
             onChange={(e) => setSelectedSubjectId(e.target.value)}
-            className="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
+            disabled={displayedSubjects.length === 0}
+            className="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100 disabled:text-slate-500"
           >
-            {displayedSubjects.map((sub) => (
-              <option key={sub.id} value={sub.id}>
-                {sub.name} ({sub.code})
+            {displayedSubjects.length === 0 ? (
+              <option value="" disabled>
+                No subjects assigned
               </option>
-            ))}
+            ) : (
+              displayedSubjects.map((sub) => (
+                <option key={sub.id} value={sub.id}>
+                  {sub.name} ({sub.code})
+                </option>
+              ))
+            )}
           </select>
         </div>
 
@@ -608,13 +678,33 @@ export default function ScoresPage() {
                     <div className="max-w-md mx-auto space-y-3">
                       <Database className="w-8 h-8 text-slate-300 mx-auto" />
                       <p className="text-slate-600 font-medium text-sm">
-                        No students currently enrolled in <strong>{classLevel}</strong> in Neon DB.
+                        {isTeacher && (!teacherClasses || teacherClasses.length === 0) ? (
+                          "Classes have not yet been assigned to your profile by the administration."
+                        ) : isTeacher && (!teacherSubjects || teacherSubjects.length === 0) ? (
+                          "Subjects have not yet been assigned to your profile by the administration."
+                        ) : isTeacher && displayedClasses.length === 0 ? (
+                          "No classes assigned to you in the selected school wing."
+                        ) : isTeacher && displayedSubjects.length === 0 ? (
+                          "No subjects assigned to you in the selected school wing."
+                        ) : !classLevel ? (
+                          "Please select an assigned class."
+                        ) : (
+                          <>
+                            No students currently enrolled in <strong>{classLevel}</strong> in Neon DB.
+                          </>
+                        )}
                       </p>
-                      {classesWithStudents.length > 0 && (
+                      {(!isTeacher
+                        ? classesWithStudents
+                        : classesWithStudents.filter((cls) => displayedClasses.includes(cls))
+                      ).length > 0 && (
                         <div className="pt-1">
                           <p className="text-xs text-slate-400 mb-2">Available classes with registered students:</p>
                           <div className="flex flex-wrap items-center justify-center gap-2">
-                            {classesWithStudents.map((cls) => (
+                            {(!isTeacher
+                              ? classesWithStudents
+                              : classesWithStudents.filter((cls) => displayedClasses.includes(cls))
+                            ).map((cls) => (
                               <button
                                 key={cls}
                                 onClick={() => setClassLevel(cls)}
