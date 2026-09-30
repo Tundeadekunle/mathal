@@ -22,6 +22,7 @@ import {
   SlidersHorizontal,
   ShieldCheck,
   AlertCircle,
+  BookOpen,
 } from "lucide-react";
 
 export default function DashboardOverview() {
@@ -120,10 +121,10 @@ export default function DashboardOverview() {
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-slate-800 text-sm">
-                  Official Academic Allocation
+                  Teaching Classes &amp; Subjects
                 </h3>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                  Admin Assigned
+                  Active Allocation
                 </span>
               </div>
               {user.assignedClasses || user.assignedSubjects ? (
@@ -131,26 +132,32 @@ export default function DashboardOverview() {
                   <div>
                     <span className="font-semibold text-slate-400">Assigned Classes: </span>
                     <strong className="text-slate-800">
-                      {user.assignedClasses || "Pending"}
+                      {user.assignedClasses || "None selected"}
                     </strong>
                   </div>
                   <span className="text-slate-300">&bull;</span>
                   <div>
                     <span className="font-semibold text-slate-400">Assigned Subjects: </span>
                     <strong className="text-slate-800">
-                      {user.assignedSubjects || "Pending"}
+                      {user.assignedSubjects || "None selected"}
                     </strong>
                   </div>
                 </div>
               ) : (
                 <p className="mt-1 text-xs text-amber-700 leading-relaxed">
-                  Your teaching classes and subjects are currently pending allocation by school administrators. Please contact school administration to configure your academic duties.
+                  You haven&apos;t configured your teaching classes or subjects yet. You can create subjects and assign them to your classes now.
                 </p>
               )}
             </div>
           </div>
 
           <div className="flex items-center gap-2 self-end md:self-center">
+            <Link
+              href="/dashboard/subjects"
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs transition-colors"
+            >
+              Manage Subjects &amp; Classes
+            </Link>
             <Link
               href="/dashboard/scores"
               className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 transition-colors"
@@ -287,7 +294,7 @@ export default function DashboardOverview() {
                     Pupils &amp; Students Directory
                   </h3>
                   <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-                    Register new learners in Nursery, Basic 1-6, JSS, and SSS with automated admission IDs.
+                    Register new learners in KG 1-2, Nursery, Basic 1-6, JSS, and SSS with automated admission IDs.
                   </p>
                 </div>
                 <div className="mt-4 flex items-center gap-1.5 text-xs font-bold text-emerald-700">
@@ -315,6 +322,29 @@ export default function DashboardOverview() {
                 </div>
                 <div className="mt-4 flex items-center gap-1.5 text-xs font-bold text-emerald-700">
                   Assign Classes &amp; Subjects
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </Link>
+            )}
+
+            {role !== "STUDENT" && (
+              <Link
+                href="/dashboard/subjects"
+                className="group p-5 bg-white rounded-2xl border border-slate-200/80 hover:border-emerald-500/50 hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-bold text-slate-800 group-hover:text-emerald-800 transition-colors">
+                    Subjects &amp; Curriculum
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                    Create new subjects and add curriculum subjects to your assigned classes (including KG 1 &amp; KG 2).
+                  </p>
+                </div>
+                <div className="mt-4 flex items-center gap-1.5 text-xs font-bold text-emerald-700">
+                  Manage Subjects
                   <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                 </div>
               </Link>

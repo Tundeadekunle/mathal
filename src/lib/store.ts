@@ -54,6 +54,7 @@ export interface DemoSubject {
   name: string;
   code: string;
   section: "PRIMARY" | "SECONDARY" | "BOTH";
+  description?: string | null;
 }
 
 export interface DemoScoreRecord {
@@ -143,14 +144,18 @@ export interface DemoExamSubmission {
 const initialSubjects: DemoSubject[] = [
   { id: "sub_1", name: "Mathematics", code: "MTH", section: "BOTH" },
   { id: "sub_2", name: "English Language", code: "ENG", section: "BOTH" },
-  { id: "sub_3", name: "Basic Science & Technology", code: "BST", section: "PRIMARY" },
-  { id: "sub_4", name: "Social Studies & Civic Education", code: "SSC", section: "BOTH" },
-  { id: "sub_5", name: "Islamic Studies / CRS", code: "IRS", section: "BOTH" },
-  { id: "sub_6", name: "Agricultural Science", code: "AGR", section: "BOTH" },
-  { id: "sub_7", name: "Information & Comm. Technology (ICT)", code: "ICT", section: "BOTH" },
-  { id: "sub_8", name: "Physics", code: "PHY", section: "SECONDARY" },
-  { id: "sub_9", name: "Chemistry", code: "CHM", section: "SECONDARY" },
-  { id: "sub_10", name: "Biology", code: "BIO", section: "SECONDARY" },
+  { id: "sub_3", name: "Number Work", code: "NWK", section: "PRIMARY" },
+  { id: "sub_4", name: "Letter Work", code: "LTW", section: "PRIMARY" },
+  { id: "sub_5", name: "Rhymes & Poems", code: "RHY", section: "PRIMARY" },
+  { id: "sub_6", name: "Health & Physical Habits", code: "HPH", section: "PRIMARY" },
+  { id: "sub_7", name: "Basic Science & Technology", code: "BST", section: "PRIMARY" },
+  { id: "sub_8", name: "Social Studies & Civic Education", code: "SSC", section: "BOTH" },
+  { id: "sub_9", name: "Islamic Studies / CRS", code: "IRS", section: "BOTH" },
+  { id: "sub_10", name: "Agricultural Science", code: "AGR", section: "BOTH" },
+  { id: "sub_11", name: "Information & Comm. Technology (ICT)", code: "ICT", section: "BOTH" },
+  { id: "sub_12", name: "Physics", code: "PHY", section: "SECONDARY" },
+  { id: "sub_13", name: "Chemistry", code: "CHM", section: "SECONDARY" },
+  { id: "sub_14", name: "Biology", code: "BIO", section: "SECONDARY" },
 ];
 
 // In-Memory live cache initialized empty (NO DEMO USERS OR DEMO STUDENTS)
@@ -271,6 +276,42 @@ export const dataStore = {
   getSubjects: (section?: "PRIMARY" | "SECONDARY") => {
     if (!section) return state.subjects;
     return state.subjects.filter((s) => s.section === section || s.section === "BOTH");
+  },
+  addSubject: async (subject: {
+    name: string;
+    code?: string;
+    section: "PRIMARY" | "SECONDARY" | "BOTH";
+    description?: string;
+    autoAssignToTeacher?: boolean;
+  }) => {
+    try {
+      const res = await fetch("/api/subjects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(subject),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        if (d.subject) {
+          const exists = state.subjects.find((s) => s.id === d.subject.id || s.code === d.subject.code);
+          if (!exists) {
+            state.subjects.push(d.subject);
+          }
+          return d.subject;
+        }
+      }
+    } catch {
+      // fallback to memory
+    }
+
+    const newSub: DemoSubject = {
+      id: `sub_${Date.now()}`,
+      name: subject.name,
+      code: subject.code || subject.name.substring(0, 3).toUpperCase(),
+      section: subject.section,
+    };
+    state.subjects.push(newSub);
+    return newSub;
   },
 
   // Attendance

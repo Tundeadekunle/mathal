@@ -2,37 +2,50 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Section } from "@prisma/client";
 
-// Helper to verify admin permissions from session cookie
-async function verifyAdmin(req: NextRequest): Promise<{ isAdmin: boolean; error?: string; status?: number }> {
+// Helper to verify admin or self-teacher permissions from session cookie
+async function verifyTeacherOrAdmin(
+  req: NextRequest,
+  teacherId: string
+): Promise<{ authorized: boolean; isAdmin: boolean; isSelfTeacher: boolean; error?: string; status?: number }> {
   const sessionCookie = req.cookies.get("mathal_session")?.value;
 
   if (!sessionCookie) {
-    return { isAdmin: false, error: "Authentication required. Please sign in as an administrator.", status: 401 };
+    return { authorized: false, isAdmin: false, isSelfTeacher: false, error: "Authentication required. Please sign in.", status: 401 };
   }
 
   try {
     const sessionData = JSON.parse(sessionCookie);
     if (!sessionData?.id) {
-      return { isAdmin: false, error: "Invalid session.", status: 401 };
+      return { authorized: false, isAdmin: false, isSelfTeacher: false, error: "Invalid session.", status: 401 };
     }
 
-    // Verify against Neon DB to guarantee fresh role and revoke any forged cookies
+    // Verify against Neon DB to guarantee fresh role and ownership
     const user = await prisma.user.findUnique({
       where: { id: sessionData.id },
-      select: { id: true, role: true, name: true },
+      include: { teacher: true },
     });
 
-    if (!user || user.role !== "ADMIN") {
-      return {
-        isAdmin: false,
-        error: "Forbidden. Only school administrators are authorized to assign classes and subjects to teachers.",
-        status: 403,
-      };
+    if (!user) {
+      return { authorized: false, isAdmin: false, isSelfTeacher: false, error: "User not found.", status: 401 };
     }
 
-    return { isAdmin: true };
+    if (user.role === "ADMIN") {
+      return { authorized: true, isAdmin: true, isSelfTeacher: false };
+    }
+
+    if (user.role === "TEACHER" && user.teacher && user.teacher.id === teacherId) {
+      return { authorized: true, isAdmin: false, isSelfTeacher: true };
+    }
+
+    return {
+      authorized: false,
+      isAdmin: false,
+      isSelfTeacher: false,
+      error: "Forbidden. You can only manage classes and subjects for your own teacher profile.",
+      status: 403,
+    };
   } catch {
-    return { isAdmin: false, error: "Failed to verify administrator privileges.", status: 500 };
+    return { authorized: false, isAdmin: false, isSelfTeacher: false, error: "Failed to verify privileges.", status: 500 };
   }
 }
 
@@ -73,9 +86,9 @@ export async function PATCH(
   try {
     const { id } = await params;
 
-    // Strictly enforce admin role
-    const authCheck = await verifyAdmin(req);
-    if (!authCheck.isAdmin) {
+    // Enforce admin or self-teacher role
+    const authCheck = await verifyTeacherOrAdmin(req, id);
+    if (!authCheck.authorized) {
       return NextResponse.json(
         { error: authCheck.error },
         { status: authCheck.status || 403 }

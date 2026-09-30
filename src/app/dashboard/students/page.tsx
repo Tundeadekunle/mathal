@@ -85,12 +85,17 @@ export default function StudentsPage() {
 
   const filteredStudents = students.filter((s) => {
     const matchesSection = selectedSection === "ALL" || s.section === selectedSection;
-    const matchesClass = selectedClass === "ALL" || s.classLevel === selectedClass;
+    const matchesClass =
+      selectedClass === "ALL" ||
+      s.classLevel === selectedClass ||
+      s.classLevel.replace(/\s+/g, "").toLowerCase() === selectedClass.replace(/\s+/g, "").toLowerCase();
     const fullName = `${s.firstName} ${s.lastName} ${s.otherName || ""}`.toLowerCase();
+    const cleanSearch = searchQuery.toLowerCase().trim();
     const matchesQuery =
-      fullName.includes(searchQuery.toLowerCase()) ||
-      s.admissionNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.guardianName.toLowerCase().includes(searchQuery.toLowerCase());
+      fullName.includes(cleanSearch) ||
+      s.admissionNo.toLowerCase().includes(cleanSearch) ||
+      s.classLevel.toLowerCase().replace(/\s+/g, "").includes(cleanSearch.replace(/\s+/g, "")) ||
+      s.guardianName.toLowerCase().includes(cleanSearch);
     return matchesSection && matchesClass && matchesQuery;
   });
 

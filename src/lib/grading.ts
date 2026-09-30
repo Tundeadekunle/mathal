@@ -53,6 +53,8 @@ export const RATING_SCALE = [
 ];
 
 export const PRIMARY_CLASSES = [
+  "KG 1",
+  "KG 2",
   "Nursery 1",
   "Nursery 2",
   "Nursery 3",
@@ -82,3 +84,17 @@ export const SECONDARY_CLASSES = [
 export const ALL_CLASSES = [...PRIMARY_CLASSES, ...SECONDARY_CLASSES];
 
 export const CLASS_ARMS = ["Gold", "Diamond", "Silver", "Emerald", "A", "B", "C"];
+
+export function normalizeClassName(className: string): string {
+  const trimmed = (className || "").trim();
+  const lowerNoSpace = trimmed.toLowerCase().replace(/\s+/g, "");
+  if (lowerNoSpace === "kg1") return "KG 1";
+  if (lowerNoSpace === "kg2") return "KG 2";
+  return trimmed;
+}
+
+export function isPrimaryClass(className: string): boolean {
+  const normalized = normalizeClassName(className);
+  return PRIMARY_CLASSES.includes(normalized);
+}
+

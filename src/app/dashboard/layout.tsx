@@ -76,6 +76,12 @@ export default function DashboardLayout({
       roles: ["ADMIN"],
     },
     {
+      label: "Subjects & Curriculum",
+      href: "/dashboard/subjects",
+      icon: BookOpen,
+      roles: ["ADMIN", "TEACHER"],
+    },
+    {
       label: "Daily Attendance",
       href: "/dashboard/attendance",
       icon: ClipboardList,

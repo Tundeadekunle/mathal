@@ -140,7 +140,7 @@ export default function Home() {
                   Pupils &amp; Students Registration
                 </h3>
                 <p className="text-slate-300 text-sm leading-relaxed mb-4">
-                  Streamlined enrollment for both Primary (Nursery 1-3, Basic 1-6) and Secondary (JSS 1-3, SSS 1-3) wings with parent profiles and auto-generated student IDs.
+                  Streamlined enrollment for both Primary (KG 1-2, Nursery 1-3, Basic 1-6) and Secondary (JSS 1-3, SSS 1-3) wings with parent profiles and auto-generated student IDs.
                 </p>
                 <div className="flex items-center gap-2 text-xs font-semibold text-blue-400">
                   <CheckCircle2 className="w-4 h-4" /> Multi-section &bull; Class &amp; Arm allocation

@@ -19,6 +19,8 @@ import {
   RefreshCw,
   CheckCircle2,
   Database,
+  Plus,
+  X,
 } from "lucide-react";
 
 interface StudentScoreEntry {
@@ -34,7 +36,7 @@ interface StudentScoreEntry {
 }
 
 export default function ScoresPage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { session: activeSession, term: activeTerm, sessions, terms, setSession: setActiveSession, setTerm: setActiveTerm } = useAcademic();
   const [section, setSection] = useState<"PRIMARY" | "SECONDARY">("PRIMARY");
   const [classLevel, setClassLevel] = useState("Basic 1");
@@ -50,6 +52,15 @@ export default function ScoresPage() {
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
   const [isSavingAll, setIsSavingAll] = useState(false);
   const [classesWithStudents, setClassesWithStudents] = useState<string[]>([]);
+
+  // Inline Subject Creation & Assignment Modal
+  const [showAddSubjectModal, setShowAddSubjectModal] = useState(false);
+  const [modalTab, setModalTab] = useState<"existing" | "create">("existing");
+  const [newSubName, setNewSubName] = useState("");
+  const [newSubCode, setNewSubCode] = useState("");
+  const [newSubDesc, setNewSubDesc] = useState("");
+  const [isSubmittingSubject, setIsSubmittingSubject] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   // Sync with global academic period changes
   useEffect(() => {
@@ -98,25 +109,110 @@ export default function ScoresPage() {
       : []
     : allSecClasses;
 
-  useEffect(() => {
-    async function loadSubjects() {
-      try {
-        const res = await fetch(`/api/subjects?section=${section}`);
-        if (res.ok) {
-          const d = await res.json();
-          if (d.subjects && d.subjects.length > 0) {
-            setSubjects(d.subjects);
-            return;
-          }
+  const loadSubjects = async () => {
+    try {
+      const res = await fetch(`/api/subjects?section=${section}`);
+      if (res.ok) {
+        const d = await res.json();
+        if (d.subjects && d.subjects.length > 0) {
+          setSubjects(d.subjects);
+          return d.subjects as DemoSubject[];
         }
-      } catch {
-        // fallback
       }
-      const loadedSubs = dataStore.getSubjects(section);
-      setSubjects(loadedSubs);
+    } catch {
+      // fallback
     }
+    const loadedSubs = dataStore.getSubjects(section);
+    setSubjects(loadedSubs);
+    return loadedSubs;
+  };
+
+  useEffect(() => {
     loadSubjects();
   }, [section]);
+
+  const handleQuickAddExistingSubject = async (sub: DemoSubject) => {
+    if (!isTeacher || !user?.teacherId) return;
+    setIsSubmittingSubject(true);
+    setModalError(null);
+
+    const currentSubs = teacherSubjects ? [...teacherSubjects] : [];
+    if (!currentSubs.some((s) => s.toLowerCase() === sub.name.toLowerCase())) {
+      currentSubs.push(sub.name);
+    }
+
+    try {
+      const res = await fetch(`/api/teachers/${user.teacherId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assignedSubjects: currentSubs,
+          assignedClasses: teacherClasses || (classLevel ? [classLevel] : []),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to add subject.");
+      }
+      await refreshUser();
+      setSelectedSubjectId(sub.id);
+      setShowAddSubjectModal(false);
+      setSavedNotice(`Added "${sub.name}" to your classes and selected it for score entry!`);
+      setTimeout(() => setSavedNotice(null), 4000);
+    } catch (err: any) {
+      setModalError(err.message || "Failed to add subject to class.");
+    } finally {
+      setIsSubmittingSubject(false);
+    }
+  };
+
+  const handleQuickCreateSubject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSubName.trim()) {
+      setModalError("Please enter a subject name.");
+      return;
+    }
+    setIsSubmittingSubject(true);
+    setModalError(null);
+
+    try {
+      const res = await fetch("/api/subjects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newSubName.trim(),
+          code: newSubCode.trim() || undefined,
+          section,
+          description: newSubDesc.trim() || undefined,
+          autoAssignToTeacher: true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create subject.");
+      }
+
+      await refreshUser();
+      const updatedList = await loadSubjects();
+      const created = (updatedList || []).find(
+        (s: any) => s.name.toLowerCase() === newSubName.trim().toLowerCase()
+      );
+      if (created) {
+        setSelectedSubjectId(created.id);
+      }
+
+      setShowAddSubjectModal(false);
+      setNewSubName("");
+      setNewSubCode("");
+      setNewSubDesc("");
+      setSavedNotice(`Created "${newSubName.trim()}" and added to your classes!`);
+      setTimeout(() => setSavedNotice(null), 4000);
+    } catch (err: any) {
+      setModalError(err.message || "Failed to create subject.");
+    } finally {
+      setIsSubmittingSubject(false);
+    }
+  };
 
   // Strictly filter to assigned subjects for teachers. Zero fallback to unassigned subjects.
   const displayedSubjects = isTeacher
@@ -475,13 +571,34 @@ export default function ScoresPage() {
 
       {/* Allocation Pending Notice for Teachers */}
       {isTeacher && !hasTeacherAssignments && (
-        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-3 shadow-sm">
-          <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <span className="font-bold text-sm text-amber-950">Teaching Allocation Pending</span>
-            <p className="mt-0.5 text-slate-600 leading-relaxed">
-              Classes and subjects have not yet been allocated to your profile. At Mathal International Schools, only school administrators can assign classes and subjects to teachers. Please contact school administration to configure your academic duties.
-            </p>
+        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold text-sm text-amber-950">Teaching Allocation Setup</span>
+              <p className="mt-0.5 text-slate-600 leading-relaxed">
+                You haven&apos;t added subjects or classes to your teaching profile yet. You can create custom subjects or add subjects to your classes right now to begin recording scores!
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddSubjectModal(true);
+                setModalTab("create");
+                setModalError(null);
+              }}
+              className="px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-xs cursor-pointer"
+            >
+              + Create Subject
+            </button>
+            <Link
+              href="/dashboard/subjects"
+              className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 font-bold text-xs"
+            >
+              Manage Classes
+            </Link>
           </div>
         </div>
       )}
@@ -502,7 +619,7 @@ export default function ScoresPage() {
             disabled={isTeacher && (!hasPrimaryClasses || !hasSecondaryClasses)}
             className="w-full py-2 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100 disabled:text-slate-500"
           >
-            {(!isTeacher || hasPrimaryClasses) && <option value="PRIMARY">Primary Wing</option>}
+            {(!isTeacher || hasPrimaryClasses) && <option value="PRIMARY">Primary &amp; KG Wing</option>}
             {(!isTeacher || hasSecondaryClasses) && <option value="SECONDARY">Secondary Wing</option>}
             {isTeacher && !hasPrimaryClasses && !hasSecondaryClasses && (
               <option value="PRIMARY" disabled>
@@ -519,13 +636,13 @@ export default function ScoresPage() {
               Class Level
             </label>
             {isTeacher && (
-              <span
-                className={`text-[10px] font-bold ${
-                  displayedClasses.length > 0 ? "text-emerald-600" : "text-amber-600"
-                }`}
+              <Link
+                href="/dashboard/subjects"
+                className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 hover:underline"
+                title="Manage teaching classes"
               >
-                {displayedClasses.length > 0 ? "Assigned Only" : "Unassigned"}
-              </span>
+                Manage Classes
+              </Link>
             )}
           </div>
           <select
@@ -555,13 +672,18 @@ export default function ScoresPage() {
               Subject
             </label>
             {isTeacher && (
-              <span
-                className={`text-[10px] font-bold ${
-                  displayedSubjects.length > 0 ? "text-blue-600" : "text-amber-600"
-                }`}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddSubjectModal(true);
+                  setModalError(null);
+                }}
+                className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-0.5 cursor-pointer"
+                title="Add or create subjects for this class"
               >
-                {displayedSubjects.length > 0 ? "Assigned Only" : "Unassigned"}
-              </span>
+                <Plus className="w-3 h-3" />
+                <span>+ Add / Create</span>
+              </button>
             )}
           </div>
           <select
@@ -582,6 +704,19 @@ export default function ScoresPage() {
               ))
             )}
           </select>
+          {isTeacher && displayedSubjects.length === 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddSubjectModal(true);
+                setModalError(null);
+              }}
+              className="mt-1 text-[11px] font-bold text-emerald-700 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <Plus className="w-3 h-3" />
+              Add or create subjects for this class
+            </button>
+          )}
         </div>
 
         {/* Academic Session */}
@@ -922,6 +1057,244 @@ export default function ScoresPage() {
               </>
             )}
           </button>
+        </div>
+      )}
+
+      {/* Add / Create Subject Quick Modal */}
+      {showAddSubjectModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="px-6 py-5 bg-[#0B1A36] text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-400 text-emerald-950 flex items-center justify-center font-bold">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-serif font-black text-lg">Add Subject for {classLevel || "Your Class"}</h3>
+                  <p className="text-[11px] text-blue-200">
+                    Add from existing curriculum or create a custom subject
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddSubjectModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Tab switch */}
+            <div className="flex border-b border-slate-200 bg-slate-50 px-6 pt-3 gap-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setModalTab("existing");
+                  setModalError(null);
+                }}
+                className={`pb-2.5 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
+                  modalTab === "existing"
+                    ? "border-emerald-600 text-emerald-800"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                Choose from Curriculum
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setModalTab("create");
+                  setModalError(null);
+                }}
+                className={`pb-2.5 text-xs font-bold border-b-2 transition-colors cursor-pointer ${
+                  modalTab === "create"
+                    ? "border-emerald-600 text-emerald-800"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                + Create New Subject
+              </button>
+            </div>
+
+            <div className="p-6">
+              {modalError && (
+                <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                  <span>{modalError}</span>
+                </div>
+              )}
+
+              {modalTab === "existing" ? (
+                <div className="space-y-3">
+                  <p className="text-xs text-slate-500">
+                    Select a subject below to activate it for your class score entry:
+                  </p>
+                  <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+                    {subjects
+                      .filter((s) => s.section === section || s.section === "BOTH")
+                      .map((sub) => {
+                        const isAlreadyAdded = displayedSubjects.some((ds) => ds.id === sub.id);
+                        return (
+                          <div
+                            key={sub.id}
+                            className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                              isAlreadyAdded
+                                ? "bg-slate-50 border-slate-200 text-slate-400"
+                                : "bg-white border-slate-200 hover:border-emerald-300 hover:shadow-xs"
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-xs text-slate-800">
+                                  {sub.name}
+                                </span>
+                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                                  {sub.code}
+                                </span>
+                              </div>
+                              {sub.description && (
+                                <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                                  {sub.description}
+                                </p>
+                              )}
+                            </div>
+
+                            {isAlreadyAdded ? (
+                              <span className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1 flex-shrink-0">
+                                <Check className="w-3.5 h-3.5" /> Added
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={isSubmittingSubject}
+                                onClick={() => handleQuickAddExistingSubject(sub)}
+                                className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex-shrink-0 cursor-pointer disabled:opacity-50"
+                              >
+                                {isSubmittingSubject ? "Adding..." : "+ Add to Class"}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleQuickCreateSubject} className="space-y-3.5">
+                  {/* Quick Presets */}
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                      Quick Suggestions (KG &amp; Primary):
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { name: "Number Work", code: "NWK" },
+                        { name: "Letter Work", code: "LTW" },
+                        { name: "Rhymes & Poems", code: "RHY" },
+                        { name: "Health Habits", code: "HLH" },
+                        { name: "Phonics & Diction", code: "PHN" },
+                        { name: "Social Habits", code: "SHB" },
+                      ].map((item) => (
+                        <button
+                          key={item.name}
+                          type="button"
+                          onClick={() => {
+                            setNewSubName(item.name);
+                            setNewSubCode(item.code);
+                          }}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-700 transition-colors cursor-pointer"
+                        >
+                          {item.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Subject Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Letter Work, Number Work, Phonics..."
+                      value={newSubName}
+                      onChange={(e) => setNewSubName(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Code (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        placeholder="e.g. LTW, NWK"
+                        value={newSubCode}
+                        onChange={(e) => setNewSubCode(e.target.value.toUpperCase())}
+                        className="w-full px-3 py-2 text-xs font-mono uppercase bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Section
+                      </label>
+                      <input
+                        type="text"
+                        readOnly
+                        value={section === "PRIMARY" ? "Primary & KG" : "Secondary"}
+                        className="w-full px-3 py-2 text-xs bg-slate-100 border border-slate-200 rounded-xl text-slate-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Description (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Brief description..."
+                      value={newSubDesc}
+                      onChange={(e) => setNewSubDesc(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddSubjectModal(false)}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmittingSubject}
+                      className="px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      {isSubmittingSubject ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-3.5 h-3.5" />
+                          Create &amp; Add to Class
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
