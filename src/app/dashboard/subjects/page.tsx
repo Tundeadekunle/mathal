@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { PRIMARY_CLASSES, SECONDARY_CLASSES } from "@/lib/grading";
 import {
   BookOpen,
   Plus,
@@ -134,7 +133,6 @@ export default function SubjectsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           assignedSubjects: updatedList,
-          assignedClasses: teacherAssignedClasses,
         }),
       });
 
@@ -152,47 +150,6 @@ export default function SubjectsPage() {
     } catch (err: any) {
       setTeacherAssignedSubjects(teacherAssignedSubjects); // revert
       showErrorToast(err.message || "Failed to update subject allocation.");
-    } finally {
-      setIsSavingAllocation(false);
-    }
-  };
-
-  // Toggle class for current teacher
-  const handleToggleClass = async (className: string) => {
-    if (!isTeacher || !user?.teacherId) return;
-
-    const isAlreadyAssigned = teacherAssignedClasses.includes(className);
-    const updatedClasses = isAlreadyAssigned
-      ? teacherAssignedClasses.filter((c) => c !== className)
-      : [...teacherAssignedClasses, className];
-
-    setTeacherAssignedClasses(updatedClasses);
-    setIsSavingAllocation(true);
-
-    try {
-      const res = await fetch(`/api/teachers/${user.teacherId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          assignedClasses: updatedClasses,
-          assignedSubjects: teacherAssignedSubjects,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to update assigned classes.");
-      }
-
-      await refreshUser();
-      showToast(
-        isAlreadyAssigned
-          ? `Class "${className}" unassigned.`
-          : `Class "${className}" added to your teaching profile!`
-      );
-    } catch (err: any) {
-      setTeacherAssignedClasses(teacherAssignedClasses); // revert
-      showErrorToast(err.message || "Failed to update class allocation.");
     } finally {
       setIsSavingAllocation(false);
     }
@@ -219,6 +176,8 @@ export default function SubjectsPage() {
           section: formData.section,
           description: formData.description.trim() || undefined,
           autoAssignToTeacher: isTeacher && formData.autoAssign,
+          teacherId: user?.teacherId,
+          userId: user?.id,
         }),
       });
 
@@ -227,9 +186,21 @@ export default function SubjectsPage() {
         throw new Error(data.error || "Failed to create subject.");
       }
 
-      await loadSubjects();
+      // If teacher auto-assigned it, update local state immediately
+      if (data.updatedAssignedSubjects && Array.isArray(data.updatedAssignedSubjects)) {
+        setTeacherAssignedSubjects(data.updatedAssignedSubjects);
+      } else if (isTeacher && formData.autoAssign) {
+        setTeacherAssignedSubjects((prev) => {
+          if (!prev.some((s) => s.toLowerCase() === formData.name.trim().toLowerCase())) {
+            return [...prev, formData.name.trim()];
+          }
+          return prev;
+        });
+      }
+
+      loadSubjects();
       if (isTeacher) {
-        await refreshUser();
+        refreshUser();
       }
 
       setShowCreateModal(false);
@@ -241,7 +212,7 @@ export default function SubjectsPage() {
         autoAssign: true,
       });
 
-      showToast(data.message || `Subject "${data.subject?.name}" created successfully!`);
+      showToast(data.message || `Subject "${data.subject?.name}" created successfully and added to your classes!`);
     } catch (err: any) {
       setFormError(err.message || "Failed to create subject.");
     } finally {
@@ -333,74 +304,72 @@ export default function SubjectsPage() {
               </div>
               <div>
                 <h2 className="font-bold text-slate-800 text-sm">
-                  My Teaching Portfolio &bull; Classes &amp; Subjects
+                  My Teaching Subjects &amp; Classes
                 </h2>
                 <p className="text-[11px] text-slate-500">
-                  Select your classes and click subjects below to instantly add or remove them from your active teaching list.
+                  Create subjects or click &quot;+ Add to My Classes&quot; on any subject in the curriculum catalog below.
                 </p>
               </div>
             </div>
 
-            {isSavingAllocation && (
-              <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 font-semibold animate-pulse">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                Saving updates...
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {isSavingAllocation && (
+                <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 font-semibold animate-pulse">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  Saving updates...
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setFormData({
+                    name: "",
+                    code: "",
+                    section: user?.assignedSection === "SECONDARY" ? "SECONDARY" : "PRIMARY",
+                    description: "",
+                    autoAssign: true,
+                  });
+                  setShowCreateModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-xs cursor-pointer transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>+ Create Subject for My Classes</span>
+              </button>
+            </div>
           </div>
 
-          {/* Classes Selector for Teacher */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-2">
-              Assigned Classes ({teacherAssignedClasses.length} selected):
-            </label>
-            <div className="flex flex-wrap gap-1.5 sm:gap-2">
-              <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider self-center mr-1">
-                Primary / KG:
+          {/* Admin-Assigned Classes Display (Read-Only) */}
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <BookmarkCheck className="w-3.5 h-3.5 text-emerald-700" />
+                Classes Assigned by Administration ({teacherAssignedClasses.length}):
               </span>
-              {PRIMARY_CLASSES.map((cls) => {
-                const active = teacherAssignedClasses.includes(cls);
-                return (
-                  <button
-                    key={cls}
-                    type="button"
-                    onClick={() => handleToggleClass(cls)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border cursor-pointer ${
-                      active
-                        ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                        : "bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200"
-                    }`}
-                  >
-                    {cls}
-                    {active && <Check className="w-3 h-3 inline ml-1.5" />}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-2.5">
-              <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider self-center mr-1">
-                Secondary:
+              <span className="text-[10px] font-semibold text-slate-500 bg-slate-200/70 px-2 py-0.5 rounded-full">
+                Admin Allocated
               </span>
-              {SECONDARY_CLASSES.map((cls) => {
-                const active = teacherAssignedClasses.includes(cls);
-                return (
-                  <button
-                    key={cls}
-                    type="button"
-                    onClick={() => handleToggleClass(cls)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border cursor-pointer ${
-                      active
-                        ? "bg-blue-600 text-white border-blue-600 shadow-sm"
-                        : "bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200"
-                    }`}
-                  >
-                    {cls}
-                    {active && <Check className="w-3 h-3 inline ml-1.5" />}
-                  </button>
-                );
-              })}
             </div>
+            {teacherAssignedClasses.length === 0 ? (
+              <p className="text-xs text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                No classes have been assigned to your profile by the school administration yet.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {teacherAssignedClasses.map((cls) => (
+                  <span
+                    key={cls}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white text-slate-800 border border-slate-200 shadow-2xs"
+                  >
+                    <Check className="w-3 h-3 text-emerald-600" />
+                    {cls}
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="text-[10px] text-slate-400 mt-2">
+              Note: Teaching classes are assigned by the school administrator. You can create and add subjects for your assigned classes below.
+            </p>
           </div>
 
           {/* Teacher Active Subjects Badge Bar */}
@@ -414,9 +383,27 @@ export default function SubjectsPage() {
               </span>
             </div>
             {teacherAssignedSubjects.length === 0 ? (
-              <p className="text-xs text-amber-700 bg-amber-50 p-3 rounded-xl border border-amber-200">
-                You haven&apos;t added any subjects yet. Click &quot;+ Add to My Classes&quot; on any subject in the catalog below, or create a custom subject for your class!
-              </p>
+              <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <p className="text-xs text-amber-900 leading-relaxed">
+                  You haven&apos;t added any subjects yet. Create your own subjects or add existing ones below to start recording scores for your students!
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData({
+                      name: "",
+                      code: "",
+                      section: user?.assignedSection === "SECONDARY" ? "SECONDARY" : "PRIMARY",
+                      description: "",
+                      autoAssign: true,
+                    });
+                    setShowCreateModal(true);
+                  }}
+                  className="px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs whitespace-nowrap cursor-pointer shadow-xs"
+                >
+                  + Create Subject Now
+                </button>
+              </div>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {teacherAssignedSubjects.map((subName) => (

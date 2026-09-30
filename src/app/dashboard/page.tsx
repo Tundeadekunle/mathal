@@ -145,7 +145,7 @@ export default function DashboardOverview() {
                 </div>
               ) : (
                 <p className="mt-1 text-xs text-amber-700 leading-relaxed">
-                  You haven&apos;t configured your teaching classes or subjects yet. You can create subjects and assign them to your classes now.
+                  You haven&apos;t added any subjects to your assigned classes yet. You can create custom subjects and add them to your classes now.
                 </p>
               )}
             </div>
@@ -156,7 +156,7 @@ export default function DashboardOverview() {
               href="/dashboard/subjects"
               className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs transition-colors"
             >
-              Manage Subjects &amp; Classes
+              Manage My Subjects
             </Link>
             <Link
               href="/dashboard/scores"

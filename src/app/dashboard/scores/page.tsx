@@ -75,15 +75,23 @@ export default function ScoresPage() {
       ? user.assignedClasses.split(",").map((c) => c.trim()).filter(Boolean)
       : null;
 
-  const teacherSubjects =
-    isTeacher && user?.assignedSubjects
-      ? user.assignedSubjects.split(",").map((s) => s.trim()).filter(Boolean)
-      : null;
+  // Active teacher subjects state for instantaneous UI updates without waiting for network re-auth
+  const [activeTeacherSubjects, setActiveTeacherSubjects] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (user?.assignedSubjects) {
+      setActiveTeacherSubjects(
+        user.assignedSubjects.split(",").map((s) => s.trim()).filter(Boolean)
+      );
+    } else {
+      setActiveTeacherSubjects([]);
+    }
+  }, [user?.assignedSubjects]);
 
   const hasTeacherAssignments =
     !isTeacher ||
     (Boolean(teacherClasses && teacherClasses.length > 0) &&
-      Boolean(teacherSubjects && teacherSubjects.length > 0));
+      Boolean(activeTeacherSubjects.length > 0));
 
   const hasPrimaryClasses =
     !isTeacher || Boolean(teacherClasses && teacherClasses.some((c) => PRIMARY_CLASSES.includes(c)));
@@ -136,10 +144,14 @@ export default function ScoresPage() {
     setIsSubmittingSubject(true);
     setModalError(null);
 
-    const currentSubs = teacherSubjects ? [...teacherSubjects] : [];
+    const currentSubs = [...activeTeacherSubjects];
     if (!currentSubs.some((s) => s.toLowerCase() === sub.name.toLowerCase())) {
       currentSubs.push(sub.name);
     }
+
+    // Instantly update local UI
+    setActiveTeacherSubjects(currentSubs);
+    setSelectedSubjectId(sub.id);
 
     try {
       const res = await fetch(`/api/teachers/${user.teacherId}`, {
@@ -147,15 +159,13 @@ export default function ScoresPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           assignedSubjects: currentSubs,
-          assignedClasses: teacherClasses || (classLevel ? [classLevel] : []),
         }),
       });
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Failed to add subject.");
       }
-      await refreshUser();
-      setSelectedSubjectId(sub.id);
+      refreshUser();
       setShowAddSubjectModal(false);
       setSavedNotice(`Added "${sub.name}" to your classes and selected it for score entry!`);
       setTimeout(() => setSavedNotice(null), 4000);
@@ -185,6 +195,8 @@ export default function ScoresPage() {
           section,
           description: newSubDesc.trim() || undefined,
           autoAssignToTeacher: true,
+          teacherId: user?.teacherId,
+          userId: user?.id,
         }),
       });
       const data = await res.json();
@@ -192,14 +204,33 @@ export default function ScoresPage() {
         throw new Error(data.error || "Failed to create subject.");
       }
 
-      await refreshUser();
-      const updatedList = await loadSubjects();
-      const created = (updatedList || []).find(
-        (s: any) => s.name.toLowerCase() === newSubName.trim().toLowerCase()
-      );
-      if (created) {
-        setSelectedSubjectId(created.id);
+      // 1. Immediately reflect the subject in active teacher subjects
+      if (data.updatedAssignedSubjects && Array.isArray(data.updatedAssignedSubjects)) {
+        setActiveTeacherSubjects(data.updatedAssignedSubjects);
+      } else {
+        setActiveTeacherSubjects((prev) => {
+          if (!prev.some((s) => s.toLowerCase() === newSubName.trim().toLowerCase())) {
+            return [...prev, newSubName.trim()];
+          }
+          return prev;
+        });
       }
+
+      // 2. Immediately inject new subject into available subjects list and select it
+      if (data.subject) {
+        setSubjects((prev) => {
+          const exists = prev.some((s) => s.id === data.subject.id || s.name.toLowerCase() === data.subject.name.toLowerCase());
+          if (!exists) {
+            return [...prev, data.subject];
+          }
+          return prev;
+        });
+        setSelectedSubjectId(data.subject.id);
+      }
+
+      // 3. Background re-sync
+      refreshUser();
+      loadSubjects();
 
       setShowAddSubjectModal(false);
       setNewSubName("");
@@ -214,13 +245,13 @@ export default function ScoresPage() {
     }
   };
 
-  // Strictly filter to assigned subjects for teachers. Zero fallback to unassigned subjects.
+  // Strictly filter to assigned subjects for teachers using the live activeTeacherSubjects state
   const displayedSubjects = isTeacher
-    ? teacherSubjects && teacherSubjects.length > 0
+    ? activeTeacherSubjects.length > 0
       ? subjects.filter(
           (s) =>
-            teacherSubjects.some((ts) => ts.toLowerCase() === s.name.toLowerCase()) ||
-            teacherSubjects.some((ts) => ts.toLowerCase() === s.code.toLowerCase())
+            activeTeacherSubjects.some((ts) => ts.toLowerCase() === s.name.toLowerCase()) ||
+            activeTeacherSubjects.some((ts) => ts.toLowerCase() === s.code.toLowerCase())
         )
       : []
     : subjects;
@@ -575,9 +606,9 @@ export default function ScoresPage() {
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div>
-              <span className="font-bold text-sm text-amber-950">Teaching Allocation Setup</span>
+              <span className="font-bold text-sm text-amber-950">Class Subjects Setup</span>
               <p className="mt-0.5 text-slate-600 leading-relaxed">
-                You haven&apos;t added subjects or classes to your teaching profile yet. You can create custom subjects or add subjects to your classes right now to begin recording scores!
+                You haven&apos;t added any subjects to your assigned classes yet. You can create custom subjects or add subjects to your classes right now to begin recording scores!
               </p>
             </div>
           </div>
@@ -597,7 +628,7 @@ export default function ScoresPage() {
               href="/dashboard/subjects"
               className="px-3.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 font-bold text-xs"
             >
-              Manage Classes
+              Add Subjects
             </Link>
           </div>
         </div>
@@ -636,13 +667,13 @@ export default function ScoresPage() {
               Class Level
             </label>
             {isTeacher && (
-              <Link
-                href="/dashboard/subjects"
-                className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 hover:underline"
-                title="Manage teaching classes"
+              <span
+                className={`text-[10px] font-bold ${
+                  displayedClasses.length > 0 ? "text-slate-500" : "text-amber-600"
+                }`}
               >
-                Manage Classes
-              </Link>
+                {displayedClasses.length > 0 ? "Admin Assigned" : "Unassigned"}
+              </span>
             )}
           </div>
           <select
@@ -676,13 +707,14 @@ export default function ScoresPage() {
                 type="button"
                 onClick={() => {
                   setShowAddSubjectModal(true);
+                  setModalTab("create");
                   setModalError(null);
                 }}
-                className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-0.5 cursor-pointer"
-                title="Add or create subjects for this class"
+                className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/90 px-2 py-0.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                title="Create a custom subject and add it to your class"
               >
-                <Plus className="w-3 h-3" />
-                <span>+ Add / Create</span>
+                <Plus className="w-3.5 h-3.5 text-emerald-600" />
+                <span>+ Create Subject</span>
               </button>
             )}
           </div>
@@ -705,17 +737,23 @@ export default function ScoresPage() {
             )}
           </select>
           {isTeacher && displayedSubjects.length === 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                setShowAddSubjectModal(true);
-                setModalError(null);
-              }}
-              className="mt-1 text-[11px] font-bold text-emerald-700 hover:underline flex items-center gap-1 cursor-pointer"
-            >
-              <Plus className="w-3 h-3" />
-              Add or create subjects for this class
-            </button>
+            <div className="mt-1.5 p-2 bg-emerald-50/80 border border-emerald-200 rounded-xl">
+              <p className="text-[11px] text-emerald-950 font-medium mb-1">
+                No subjects added for your class yet.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddSubjectModal(true);
+                  setModalTab("create");
+                  setModalError(null);
+                }}
+                className="w-full py-1 px-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[11px] flex items-center justify-center gap-1 cursor-pointer shadow-2xs transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                <span>+ Create Subject for My Class</span>
+              </button>
+            </div>
           )}
         </div>
 
@@ -815,8 +853,8 @@ export default function ScoresPage() {
                       <p className="text-slate-600 font-medium text-sm">
                         {isTeacher && (!teacherClasses || teacherClasses.length === 0) ? (
                           "Classes have not yet been assigned to your profile by the administration."
-                        ) : isTeacher && (!teacherSubjects || teacherSubjects.length === 0) ? (
-                          "Subjects have not yet been assigned to your profile by the administration."
+                        ) : isTeacher && activeTeacherSubjects.length === 0 ? (
+                          "You have not added any subjects to your classes yet. Click \"+ Create Subject\" above to add one."
                         ) : isTeacher && displayedClasses.length === 0 ? (
                           "No classes assigned to you in the selected school wing."
                         ) : isTeacher && displayedSubjects.length === 0 ? (

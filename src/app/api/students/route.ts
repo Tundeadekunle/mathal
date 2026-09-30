@@ -80,12 +80,41 @@ export async function POST(req: Request) {
     const studentSection = (section as Section) || Section.PRIMARY;
     const prefix = studentSection === Section.PRIMARY ? "MIS/PRI" : "MIS/SEC";
     const currentYear = new Date().getFullYear();
+    const studentPrefix = `${prefix}/${currentYear}/`;
 
-    const count = await prisma.student.count({
-      where: { section: studentSection },
+    const existingStudents = await prisma.student.findMany({
+      where: {
+        admissionNo: {
+          startsWith: studentPrefix,
+        },
+      },
+      select: { admissionNo: true },
     });
-    const sequence = String(count + 1).padStart(3, "0");
-    const admissionNo = `${prefix}/${currentYear}/${sequence}`;
+
+    let maxStudentSeq = 0;
+    for (const s of existingStudents) {
+      const match = s.admissionNo.match(new RegExp(`^${prefix}/${currentYear}/(\\d+)`));
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (!isNaN(num) && num > maxStudentSeq) {
+          maxStudentSeq = num;
+        }
+      }
+    }
+
+    let studentSeq = maxStudentSeq + 1;
+    let admissionNo = "";
+    while (true) {
+      const candidateAdmissionNo = `${studentPrefix}${String(studentSeq).padStart(3, "0")}`;
+      const collision = await prisma.student.findUnique({
+        where: { admissionNo: candidateAdmissionNo },
+      });
+      if (!collision) {
+        admissionNo = candidateAdmissionNo;
+        break;
+      }
+      studentSeq++;
+    }
 
     const student = await prisma.student.create({
       data: {
@@ -114,8 +143,17 @@ export async function POST(req: Request) {
     );
   } catch (error: any) {
     console.error("Error creating student:", error);
+
+    let message = error.message || "Failed to enroll student in Neon DB.";
+    if (error.code === "P2002" || message.includes("Unique constraint failed")) {
+      const target = (error.meta?.target as string[]) || [];
+      if (target.includes("admissionNo") || message.includes("admissionNo")) {
+        message = "A student with this Admission Number already exists. Please try again.";
+      }
+    }
+
     return NextResponse.json(
-      { error: error.message || "Failed to enroll student in Neon DB." },
+      { error: message },
       { status: 500 }
     );
   }

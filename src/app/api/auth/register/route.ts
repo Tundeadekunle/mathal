@@ -81,13 +81,42 @@ export async function POST(req: Request) {
       if (userRole === Role.STUDENT) {
         const studentSection = (section as Section) || Section.PRIMARY;
         const prefix = studentSection === Section.PRIMARY ? "MIS/PRI" : "MIS/SEC";
+        const studentPrefix = `${prefix}/${currentYear}/`;
 
-        // Count existing students in this section and year for clean sequential admission numbering
-        const studentCount = await tx.student.count({
-          where: { section: studentSection },
+        // Find existing students for this year and section to get max sequence
+        const existingStudents = await tx.student.findMany({
+          where: {
+            admissionNo: {
+              startsWith: studentPrefix,
+            },
+          },
+          select: { admissionNo: true },
         });
-        const sequence = String(studentCount + 1).padStart(3, "0");
-        const admissionNo = `${prefix}/${currentYear}/${sequence}`;
+
+        let maxStudentSeq = 0;
+        for (const s of existingStudents) {
+          const match = s.admissionNo.match(new RegExp(`^${prefix}/${currentYear}/(\\d+)`));
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (!isNaN(num) && num > maxStudentSeq) {
+              maxStudentSeq = num;
+            }
+          }
+        }
+
+        let studentSeq = maxStudentSeq + 1;
+        let admissionNo = "";
+        while (true) {
+          const candidateAdmissionNo = `${studentPrefix}${String(studentSeq).padStart(3, "0")}`;
+          const collision = await tx.student.findUnique({
+            where: { admissionNo: candidateAdmissionNo },
+          });
+          if (!collision) {
+            admissionNo = candidateAdmissionNo;
+            break;
+          }
+          studentSeq++;
+        }
 
         const nameParts = cleanName.split(" ");
         const firstName = nameParts[0] || "Student";
@@ -114,9 +143,50 @@ export async function POST(req: Request) {
           },
         });
       } else if (userRole === Role.TEACHER) {
-        const teacherCount = await tx.teacher.count();
-        const sequence = String(teacherCount + 1).padStart(3, "0");
-        const assignedStaffId = staffId?.trim() || `MIS/STF/${currentYear}/${sequence}`;
+        let assignedStaffId = staffId?.trim();
+
+        if (assignedStaffId) {
+          const existing = await tx.teacher.findUnique({
+            where: { staffId: assignedStaffId },
+          });
+          if (existing) {
+            throw new Error(`The Staff ID "${assignedStaffId}" is already assigned to another teacher.`);
+          }
+        } else {
+          const teacherPrefix = `MIS/STF/${currentYear}/`;
+          const existingTeachers = await tx.teacher.findMany({
+            where: {
+              staffId: {
+                startsWith: teacherPrefix,
+              },
+            },
+            select: { staffId: true },
+          });
+
+          let maxTeacherSeq = 0;
+          for (const t of existingTeachers) {
+            const match = t.staffId.match(new RegExp(`^MIS/STF/${currentYear}/(\\d+)`));
+            if (match) {
+              const num = parseInt(match[1], 10);
+              if (!isNaN(num) && num > maxTeacherSeq) {
+                maxTeacherSeq = num;
+              }
+            }
+          }
+
+          let teacherSeq = maxTeacherSeq + 1;
+          while (true) {
+            const candidateId = `${teacherPrefix}${String(teacherSeq).padStart(3, "0")}`;
+            const collision = await tx.teacher.findUnique({
+              where: { staffId: candidateId },
+            });
+            if (!collision) {
+              assignedStaffId = candidateId;
+              break;
+            }
+            teacherSeq++;
+          }
+        }
 
         // Only school administrators can assign classes and subjects to teachers.
         // Self-registration explicitly initializes these to null.
@@ -174,8 +244,25 @@ export async function POST(req: Request) {
     return response;
   } catch (error: any) {
     console.error("Registration error:", error);
+
+    let message = error.message || "Registration failed. Please try again.";
+
+    // Handle Prisma unique constraint violations gracefully
+    if (error.code === "P2002" || message.includes("Unique constraint failed")) {
+      const target = (error.meta?.target as string[]) || [];
+      if (target.includes("staffId") || message.includes("staffId")) {
+        message = "A teacher with this Staff ID already exists. Please try registering again.";
+      } else if (target.includes("admissionNo") || message.includes("admissionNo")) {
+        message = "A student with this Admission Number already exists. Please try registering again.";
+      } else if (target.includes("email") || message.includes("email")) {
+        message = "An account with this email address already exists. Please log in instead.";
+      } else {
+        message = "An account with these details already exists. Please check your information or log in.";
+      }
+    }
+
     return NextResponse.json(
-      { error: error.message || "Registration failed. Please try again." },
+      { error: message },
       { status: 500 }
     );
   }

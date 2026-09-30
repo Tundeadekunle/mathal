@@ -98,15 +98,7 @@ export async function PATCH(
     const body = await req.json();
     const { assignedClasses, assignedSubjects, assignedSection } = body;
 
-    // Format classes (array or comma-separated string)
-    let formattedClasses: string | null = null;
-    if (Array.isArray(assignedClasses)) {
-      formattedClasses = assignedClasses.map((c: string) => c.trim()).filter(Boolean).join(",");
-    } else if (typeof assignedClasses === "string") {
-      formattedClasses = assignedClasses.trim();
-    }
-
-    // Format subjects (array or comma-separated string)
+    // Format subjects (array or comma-separated string) - Teachers and Admins can update subjects
     let formattedSubjects: string | null = null;
     if (Array.isArray(assignedSubjects)) {
       formattedSubjects = assignedSubjects.map((s: string) => s.trim()).filter(Boolean).join(",");
@@ -114,13 +106,28 @@ export async function PATCH(
       formattedSubjects = assignedSubjects.trim();
     }
 
-    const updateData: any = {
-      assignedClasses: formattedClasses || null,
-      assignedSubjects: formattedSubjects || null,
-    };
+    const updateData: any = {};
 
-    if (assignedSection && Object.values(Section).includes(assignedSection as Section)) {
-      updateData.assignedSection = assignedSection as Section;
+    if (assignedSubjects !== undefined) {
+      updateData.assignedSubjects = formattedSubjects || null;
+    }
+
+    // Strictly restrict class and section updates to Administrators
+    if (authCheck.isAdmin) {
+      let formattedClasses: string | null = null;
+      if (Array.isArray(assignedClasses)) {
+        formattedClasses = assignedClasses.map((c: string) => c.trim()).filter(Boolean).join(",");
+      } else if (typeof assignedClasses === "string") {
+        formattedClasses = assignedClasses.trim();
+      }
+
+      if (assignedClasses !== undefined) {
+        updateData.assignedClasses = formattedClasses || null;
+      }
+
+      if (assignedSection && Object.values(Section).includes(assignedSection as Section)) {
+        updateData.assignedSection = assignedSection as Section;
+      }
     }
 
     const updatedTeacher = await prisma.teacher.update({
@@ -138,7 +145,7 @@ export async function PATCH(
       },
     });
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         success: true,
         teacher: {
@@ -158,10 +165,31 @@ export async function PATCH(
             : [],
           assignedSubjectsRaw: updatedTeacher.assignedSubjects || "",
         },
-        message: `Successfully updated teaching allocation for ${updatedTeacher.user.name}!`,
+        message: authCheck.isSelfTeacher
+          ? `Successfully updated subjects for your class!`
+          : `Successfully updated teaching allocation for ${updatedTeacher.user.name}!`,
       },
       { status: 200 }
     );
+
+    try {
+      const sessionCookie = req.cookies.get("mathal_session")?.value;
+      if (sessionCookie) {
+        const parsed = JSON.parse(sessionCookie);
+        if (parsed.teacherId === id || parsed.id === updatedTeacher.userId) {
+          parsed.assignedSubjects = updatedTeacher.assignedSubjects || "";
+          response.cookies.set("mathal_session", JSON.stringify(parsed), {
+            path: "/",
+            httpOnly: false,
+            maxAge: 60 * 60 * 24 * 7,
+          });
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    return response;
   } catch (error: any) {
     console.error("Assign teacher error:", error);
     return NextResponse.json(

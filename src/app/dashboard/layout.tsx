@@ -17,11 +17,11 @@ import {
   Menu,
   X,
   ChevronDown,
-  ShieldCheck,
   BookOpen,
   Calendar,
   Check,
   Users,
+  UserCog,
 } from "lucide-react";
 
 export default function DashboardLayout({
@@ -103,6 +103,12 @@ export default function DashboardLayout({
       label: "Terminal Report Cards",
       href: "/dashboard/results",
       icon: Award,
+      roles: ["ADMIN", "TEACHER", "STUDENT"],
+    },
+    {
+      label: "My Profile & Settings",
+      href: "/dashboard/profile",
+      icon: UserCog,
       roles: ["ADMIN", "TEACHER", "STUDENT"],
     },
   ].filter((item) => item.roles.includes(role));
@@ -277,12 +283,24 @@ export default function DashboardLayout({
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 pb-2">
                     <span>Role: <strong className="text-slate-200">{role}</strong></span>
                     <span className="text-emerald-400 font-semibold flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
                       Neon DB Synced
                     </span>
+                  </div>
+                  <div className="pt-2 border-t border-slate-800">
+                    <Link
+                      href="/dashboard/profile"
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-blue-900/60 hover:bg-blue-800 text-white font-semibold text-xs transition-colors"
+                    >
+                      <span className="flex items-center gap-2">
+                        <UserCog className="w-3.5 h-3.5 text-amber-400" />
+                        Edit Profile &amp; Settings
+                      </span>
+                      <span className="text-amber-300 font-bold">&rarr;</span>
+                    </Link>
                   </div>
                 </div>
               )}

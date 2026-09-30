@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
       name: user.name,
       role: user.role,
       phone: user.phone || undefined,
+      avatarUrl: user.avatarUrl || undefined,
       studentId: user.student?.id,
       admissionNo: user.student?.admissionNo,
       passportPhoto: user.student?.passportPhoto || undefined,

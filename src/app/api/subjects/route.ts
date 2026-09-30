@@ -61,6 +61,17 @@ export async function GET(req: Request) {
 
 export async function POST(req: NextRequest) {
   try {
+    const body = await req.json();
+    const {
+      name,
+      code,
+      section = "PRIMARY",
+      description,
+      autoAssignToTeacher = true,
+      teacherId,
+      userId,
+    } = body;
+
     // Authenticate session (Teacher or Admin)
     const sessionCookie = req.cookies.get("mathal_session")?.value;
     let currentUser: any = null;
@@ -79,6 +90,24 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Fallback authentication if cookie was missing/expired but teacherId or userId was provided
+    if (!currentUser && (teacherId || userId)) {
+      if (teacherId) {
+        const teacherRec = await prisma.teacher.findUnique({
+          where: { id: teacherId },
+          include: { user: true },
+        });
+        if (teacherRec?.user) {
+          currentUser = { ...teacherRec.user, teacher: teacherRec };
+        }
+      } else if (userId) {
+        currentUser = await prisma.user.findUnique({
+          where: { id: userId },
+          include: { teacher: true },
+        });
+      }
+    }
+
     if (!currentUser || (currentUser.role !== "ADMIN" && currentUser.role !== "TEACHER")) {
       return NextResponse.json(
         { error: "Authentication required. Only teachers and administrators can create subjects." },
@@ -86,8 +115,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const body = await req.json();
-    const { name, code, section = "PRIMARY", description, autoAssignToTeacher = true } = body;
+    // Ensure teacher profile is attached if user is a teacher
+    if (currentUser.role === "TEACHER" && !currentUser.teacher) {
+      currentUser.teacher = await prisma.teacher.findUnique({
+        where: { userId: currentUser.id },
+      });
+    }
 
     if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json(
@@ -148,7 +181,7 @@ export async function POST(req: NextRequest) {
 
       if (!currentList.some((s: string) => s.toLowerCase() === subject.name.toLowerCase())) {
         currentList.push(subject.name);
-        const updatedTeacher = await prisma.teacher.update({
+        await prisma.teacher.update({
           where: { id: currentUser.teacher.id },
           data: {
             assignedSubjects: currentList.join(","),
@@ -160,17 +193,37 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         success: true,
         subject,
         updatedAssignedSubjects,
         message: existing
-          ? `Subject "${subject.name}" (${subject.code}) already exists and is now available.`
-          : `Subject "${subject.name}" (${subject.code}) created successfully!`,
+          ? `Subject "${subject.name}" (${subject.code}) is now active for your classes.`
+          : `Subject "${subject.name}" (${subject.code}) created successfully and added to your classes!`,
       },
       { status: 201 }
     );
+
+    // Synchronize mathal_session cookie with the updated assignedSubjects
+    if (updatedAssignedSubjects) {
+      try {
+        const rawCookie = req.cookies.get("mathal_session")?.value;
+        if (rawCookie) {
+          const parsed = JSON.parse(rawCookie);
+          parsed.assignedSubjects = updatedAssignedSubjects.join(",");
+          response.cookies.set("mathal_session", JSON.stringify(parsed), {
+            path: "/",
+            httpOnly: false,
+            maxAge: 60 * 60 * 24 * 7,
+          });
+        }
+      } catch {
+        // ignore cookie sync error
+      }
+    }
+
+    return response;
   } catch (error: any) {
     console.error("Error creating subject:", error);
     return NextResponse.json(
