@@ -17,6 +17,7 @@ export interface AuthUser {
   assignedClasses?: string | null;
   assignedSubjects?: string | null;
   assignedSection?: "PRIMARY" | "SECONDARY" | "BOTH";
+  resultsApproved?: boolean;
 }
 
 // Alias for backwards compatibility

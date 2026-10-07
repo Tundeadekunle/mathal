@@ -180,6 +180,9 @@ export async function GET(
       affectiveRating,
       psychomotorRating,
       hasTeacherEvaluated: Boolean(existingTermReport?.affectiveRating || existingTermReport?.psychomotorRating),
+      resultsApproved: Boolean(student.resultsApproved),
+      resultsApprovedBy: student.resultsApprovedBy,
+      resultsApprovedAt: student.resultsApprovedAt,
       scores: scores.map((s) => ({
         id: s.id,
         subjectId: s.subjectId,

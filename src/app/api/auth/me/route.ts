@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
       studentId: user.student?.id,
       admissionNo: user.student?.admissionNo,
       passportPhoto: user.student?.passportPhoto || undefined,
+      resultsApproved: user.student?.resultsApproved ?? false,
       staffId: user.teacher?.staffId,
       teacherId: user.teacher?.id,
       assignedClasses: user.teacher?.assignedClasses,

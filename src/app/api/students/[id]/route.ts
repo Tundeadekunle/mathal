@@ -82,6 +82,16 @@ export async function PATCH(
     if (body.guardianEmail !== undefined) updateData.guardianEmail = body.guardianEmail?.trim() || null;
     if (body.guardianAddress !== undefined) updateData.guardianAddress = body.guardianAddress;
     if (body.status !== undefined) updateData.status = body.status as StudentStatus;
+    if (body.resultsApproved !== undefined) {
+      updateData.resultsApproved = Boolean(body.resultsApproved);
+      if (body.resultsApproved) {
+        updateData.resultsApprovedBy = body.approvedBy || "Administrator/Teacher";
+        updateData.resultsApprovedAt = new Date();
+      } else {
+        updateData.resultsApprovedBy = null;
+        updateData.resultsApprovedAt = null;
+      }
+    }
 
     const updatedStudent = await prisma.student.update({
       where: { id: existing.id },

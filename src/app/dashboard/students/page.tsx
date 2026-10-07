@@ -9,6 +9,7 @@ import {
   SECONDARY_CLASSES,
   CLASS_ARMS,
 } from "@/lib/grading";
+import { useAuth } from "@/lib/auth-context";
 import {
   UserPlus,
   Search,
@@ -20,10 +21,13 @@ import {
   Upload,
   Trash2,
   RefreshCw,
+  Lock,
+  Unlock,
 } from "lucide-react";
 import { validateImageFile, compressPassportImage } from "@/lib/image-utils";
 
 export default function StudentsPage() {
+  const { user } = useAuth();
   const { session } = useAcademic();
   const [students, setStudents] = useState<DemoStudent[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -37,6 +41,63 @@ export default function StudentsPage() {
   const [passportModalPreview, setPassportModalPreview] = useState<string | null>(null);
   const [isUpdatingPassport, setIsUpdatingPassport] = useState(false);
   const [passportError, setPassportError] = useState<string | null>(null);
+  const [updatingApprovalId, setUpdatingApprovalId] = useState<string | null>(null);
+
+  const isTeacher = user?.role === "TEACHER";
+  const isAdmin = user?.role === "ADMIN";
+  const teacherClasses =
+    isTeacher && user?.assignedClasses
+      ? user.assignedClasses.split(",").map((c) => c.trim()).filter(Boolean)
+      : null;
+
+  const canManageClearance = (student: DemoStudent) => {
+    if (isAdmin) return true;
+    if (isTeacher) {
+      if (!teacherClasses || teacherClasses.length === 0) return true;
+      return teacherClasses.includes(student.classLevel);
+    }
+    return false;
+  };
+
+  const handleToggleStudentClearance = async (student: DemoStudent) => {
+    if (!canManageClearance(student)) return;
+    const newStatus = !student.resultsApproved;
+    setUpdatingApprovalId(student.id);
+
+    try {
+      const res = await fetch(`/api/students/${student.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resultsApproved: newStatus,
+          approvedBy: `${user?.name} (${user?.role})`,
+        }),
+      });
+
+      if (res.ok) {
+        setStudents((prev) =>
+          prev.map((s) =>
+            s.id === student.id
+              ? {
+                  ...s,
+                  resultsApproved: newStatus,
+                  resultsApprovedBy: newStatus ? `${user?.name} (${user?.role})` : null,
+                  resultsApprovedAt: newStatus ? new Date().toISOString() : null,
+                }
+              : s
+          )
+        );
+        setNotification(
+          `${student.firstName} ${student.lastName}'s report card & score access is now ${newStatus ? "APPROVED" : "WITHHELD"}.`
+        );
+        setTimeout(() => setNotification(null), 5000);
+      }
+    } catch {
+      // fallback
+    } finally {
+      setUpdatingApprovalId(null);
+    }
+  };
 
   // Registration Form State
   const [formData, setFormData] = useState({
@@ -432,6 +493,28 @@ export default function StudentsPage() {
 
                 {/* Mobile Action Buttons */}
                 <div className="flex items-center gap-2 pt-1">
+                  {canManageClearance(s) && (
+                    <button
+                      type="button"
+                      onClick={() => handleToggleStudentClearance(s)}
+                      disabled={updatingApprovalId === s.id}
+                      className={`inline-flex items-center justify-center gap-1 py-2 px-2.5 rounded-xl font-bold text-xs transition-colors min-h-[40px] ${
+                        s.resultsApproved
+                          ? "bg-emerald-50 hover:bg-rose-50 text-emerald-800 hover:text-rose-700 border border-emerald-300"
+                          : "bg-amber-100 hover:bg-emerald-50 text-amber-900 hover:text-emerald-800 border border-amber-300"
+                      }`}
+                      title={s.resultsApproved ? "Revoke clearance" : "Approve result clearance"}
+                    >
+                      {updatingApprovalId === s.id ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : s.resultsApproved ? (
+                        <Unlock className="w-3.5 h-3.5" />
+                      ) : (
+                        <Lock className="w-3.5 h-3.5" />
+                      )}
+                      <span>{s.resultsApproved ? "Approved" : "Approve"}</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => openPassportModal(s)}
@@ -464,6 +547,7 @@ export default function StudentsPage() {
                 <th className="px-6 py-3.5">Class &amp; Arm</th>
                 <th className="px-6 py-3.5">Gender</th>
                 <th className="px-6 py-3.5">Parent / Guardian</th>
+                <th className="px-4 py-3.5 text-center">Result Clearance</th>
                 <th className="px-6 py-3.5 text-right">Actions</th>
               </tr>
             </thead>
@@ -542,6 +626,44 @@ export default function StudentsPage() {
                     <td className="px-6 py-4 text-xs">
                       <div className="font-semibold text-slate-800">{s.guardianName}</div>
                       <div className="text-[11px] text-slate-400">{s.guardianPhone}</div>
+                    </td>
+                    <td className="px-4 py-4 text-center whitespace-nowrap">
+                      {canManageClearance(s) ? (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStudentClearance(s)}
+                          disabled={updatingApprovalId === s.id}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
+                            s.resultsApproved
+                              ? "bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300"
+                              : "bg-amber-100 text-amber-900 border border-amber-300 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300"
+                          }`}
+                          title={
+                            s.resultsApproved
+                              ? `Approved by ${s.resultsApprovedBy || "Teacher/Admin"}. Click to withhold.`
+                              : "Pending clearance. Click to approve."
+                          }
+                        >
+                          {updatingApprovalId === s.id ? (
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                          ) : s.resultsApproved ? (
+                            <Unlock className="w-3 h-3 text-emerald-700" />
+                          ) : (
+                            <Lock className="w-3 h-3 text-amber-700" />
+                          )}
+                          <span>{s.resultsApproved ? "Approved" : "Withheld"}</span>
+                        </button>
+                      ) : (
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            s.resultsApproved
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : "bg-amber-50 text-amber-800 border border-amber-200"
+                          }`}
+                        >
+                          {s.resultsApproved ? "Approved" : "Pending"}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">

@@ -35,6 +35,9 @@ export interface DemoStudent {
   guardianAddress?: string;
   status: "ACTIVE" | "GRADUATED" | "TRANSFERRED";
   enrollDate: string;
+  resultsApproved?: boolean;
+  resultsApprovedBy?: string | null;
+  resultsApprovedAt?: string | null;
 }
 
 export interface DemoAttendance {
@@ -97,6 +100,9 @@ export interface DemoTermReport {
   affectiveRating: Record<string, number>;
   psychomotorRating: Record<string, number>;
   scores: DemoScoreRecord[];
+  resultsApproved?: boolean;
+  resultsApprovedBy?: string | null;
+  resultsApprovedAt?: string | null;
 }
 
 export interface DemoCbtQuestion {
@@ -505,6 +511,9 @@ export const dataStore = {
       affectiveRating,
       psychomotorRating,
       scores: studentScores,
+      resultsApproved: Boolean(student.resultsApproved),
+      resultsApprovedBy: student.resultsApprovedBy,
+      resultsApprovedAt: student.resultsApprovedAt,
     };
   },
 

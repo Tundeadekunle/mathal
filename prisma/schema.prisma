@@ -94,6 +94,9 @@ model Student {
   enrollDate      DateTime       @default(now())
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
+  resultsApproved   Boolean        @default(false)
+  resultsApprovedBy String?
+  resultsApprovedAt DateTime?
 
   attendances     Attendance[]
   scoreRecords    ScoreRecord[]

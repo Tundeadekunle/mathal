@@ -26,6 +26,9 @@ import {
   Trash2,
   X,
   Check,
+  Lock,
+  Unlock,
+  ShieldAlert,
 } from "lucide-react";
 import { validateImageFile, compressPassportImage } from "@/lib/image-utils";
 
@@ -37,6 +40,7 @@ export default function StudentResultSheetPage() {
 
   const [student, setStudent] = useState<DemoStudent | null>(null);
   const [report, setReport] = useState<DemoTermReport | null>(null);
+  const [isTogglingApproval, setIsTogglingApproval] = useState(false);
 
   // Passport Modal State
   const [showPassportModal, setShowPassportModal] = useState(false);
@@ -196,6 +200,44 @@ export default function StudentResultSheetPage() {
     }
   };
 
+  const handleToggleApproval = async () => {
+    if (!student || !canRate) return;
+    const newStatus = !student.resultsApproved;
+    setIsTogglingApproval(true);
+
+    try {
+      const res = await fetch(`/api/students/${student.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resultsApproved: newStatus,
+          approvedBy: `${user?.name} (${user?.role})`,
+        }),
+      });
+
+      if (res.ok) {
+        setStudent((prev) =>
+          prev
+            ? {
+                ...prev,
+                resultsApproved: newStatus,
+                resultsApprovedBy: newStatus ? `${user?.name} (${user?.role})` : null,
+                resultsApprovedAt: newStatus ? new Date().toISOString() : null,
+              }
+            : null
+        );
+        setSaveNotice(
+          `Result access clearance for ${student.firstName} is now ${newStatus ? "APPROVED" : "WITHHELD"}!`
+        );
+        setTimeout(() => setSaveNotice(null), 4000);
+      }
+    } catch {
+      // fallback
+    } finally {
+      setIsTogglingApproval(false);
+    }
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -211,6 +253,62 @@ export default function StudentResultSheetPage() {
           >
             &larr; Back to Results
           </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const isApproved = Boolean(student.resultsApproved);
+  const isStudentRole = user?.role === "STUDENT";
+
+  // Gate access for students if not yet approved by teacher or admin
+  if (isStudentRole && !isApproved) {
+    return (
+      <div className="max-w-2xl mx-auto py-8 px-4 space-y-6">
+        <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xl p-8 sm:p-10 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-600 mx-auto flex items-center justify-center mb-5 border border-amber-200">
+            <Lock className="w-8 h-8" />
+          </div>
+
+          <span className="inline-flex px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 mb-3">
+            Result Clearance Pending
+          </span>
+
+          <h1 className="text-2xl sm:text-3xl font-serif font-black text-slate-900">
+            Report Card Access Withheld
+          </h1>
+          
+          <p className="mt-3 text-sm text-slate-600 leading-relaxed max-w-lg mx-auto">
+            Hello, <strong>{student.firstName} {student.lastName}</strong> ({student.admissionNo}).
+            Your terminal examination scores and official report card for <strong>{term}, {session}</strong> have not yet been approved for student viewing and download.
+          </p>
+
+          <div className="my-6 p-4 rounded-2xl bg-amber-50/80 border border-amber-200/90 text-left text-xs text-amber-950 space-y-2">
+            <div className="flex items-start gap-2.5">
+              <ShieldAlert className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong>Why is my result locked?</strong>
+                <p className="text-slate-600 mt-0.5">
+                  The school policy requires class teachers and administration to review and approve result releases before pupils or parents can view and download them. This also ensures administrative, fee, and academic clearances are fulfilled.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href="/dashboard/results"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+            >
+              &larr; Back to Results Directory
+            </Link>
+            <Link
+              href="/dashboard"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-colors"
+            >
+              Return to Dashboard
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -271,6 +369,33 @@ export default function StudentResultSheetPage() {
               ))}
             </select>
           </div>
+
+          {/* Teacher / Admin Result Clearance Toggle Button */}
+          {canRate && (
+            <button
+              onClick={handleToggleApproval}
+              disabled={isTogglingApproval}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs shadow-md transition-all cursor-pointer ${
+                isApproved
+                  ? "bg-emerald-100 hover:bg-rose-100 text-emerald-950 hover:text-rose-900 border border-emerald-300 hover:border-rose-300"
+                  : "bg-amber-400 hover:bg-amber-300 text-emerald-950 border border-amber-300"
+              }`}
+              title={
+                isApproved
+                  ? "Currently approved. Click to withhold student view/download access"
+                  : "Currently withheld. Click to approve student view/download access"
+              }
+            >
+              {isTogglingApproval ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              ) : isApproved ? (
+                <Unlock className="w-3.5 h-3.5 text-emerald-700" />
+              ) : (
+                <Lock className="w-3.5 h-3.5 text-amber-900" />
+              )}
+              <span>{isApproved ? "Approved (Revoke)" : "Approve Clearance"}</span>
+            </button>
+          )}
 
           {/* Teacher Save Evaluation Button */}
           {canRate && (

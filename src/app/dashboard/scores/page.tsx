@@ -21,6 +21,8 @@ import {
   Database,
   Plus,
   X,
+  Lock,
+  Unlock,
 } from "lucide-react";
 
 interface StudentScoreEntry {
@@ -33,6 +35,7 @@ interface StudentScoreEntry {
   total: number;
   grade: string;
   remark: string;
+  resultsApproved?: boolean;
 }
 
 export default function ScoresPage() {
@@ -61,6 +64,72 @@ export default function ScoresPage() {
   const [newSubDesc, setNewSubDesc] = useState("");
   const [isSubmittingSubject, setIsSubmittingSubject] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [updatingApprovalId, setUpdatingApprovalId] = useState<string | null>(null);
+  const [isBulkApproving, setIsBulkApproving] = useState(false);
+
+  const handleToggleStudentApproval = async (studentId: string, currentApproved: boolean) => {
+    const newStatus = !currentApproved;
+    setUpdatingApprovalId(studentId);
+
+    try {
+      const res = await fetch(`/api/students/${studentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resultsApproved: newStatus,
+          approvedBy: `${user?.name} (${user?.role})`,
+        }),
+      });
+
+      if (res.ok) {
+        setScoreEntries((prev) =>
+          prev.map((e) =>
+            e.studentId === studentId ? { ...e, resultsApproved: newStatus } : e
+          )
+        );
+        setSavedNotice(
+          `Report card & exam score access is now ${newStatus ? "APPROVED" : "WITHHELD"}!`
+        );
+        setTimeout(() => setSavedNotice(null), 4000);
+      }
+    } catch {
+      // fallback
+    } finally {
+      setUpdatingApprovalId(null);
+    }
+  };
+
+  const handleBulkApproveScoresClass = async (approve: boolean) => {
+    if (scoreEntries.length === 0) return;
+    setIsBulkApproving(true);
+
+    try {
+      const studentIds = scoreEntries.map((e) => e.studentId);
+      const res = await fetch("/api/students/bulk-approval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentIds,
+          resultsApproved: approve,
+          approvedBy: `${user?.name} (${user?.role})`,
+        }),
+      });
+
+      if (res.ok) {
+        setScoreEntries((prev) =>
+          prev.map((e) => ({ ...e, resultsApproved: approve }))
+        );
+        setSavedNotice(
+          `Successfully ${approve ? "approved" : "withheld"} report card & score access for all ${studentIds.length} students in ${classLevel}!`
+        );
+        setTimeout(() => setSavedNotice(null), 5000);
+      }
+    } catch {
+      // fallback
+    } finally {
+      setIsBulkApproving(false);
+    }
+  };
 
   // Sync with global academic period changes
   useEffect(() => {
@@ -343,6 +412,7 @@ export default function ScoresPage() {
           total,
           grade: gradeInfo.grade,
           remark: gradeInfo.remark,
+          resultsApproved: Boolean(st.resultsApproved),
         };
       });
 
@@ -373,6 +443,7 @@ export default function ScoresPage() {
           total,
           grade: gradeInfo.grade,
           remark: gradeInfo.remark,
+          resultsApproved: Boolean(st.resultsApproved),
         };
       });
 
@@ -551,27 +622,57 @@ export default function ScoresPage() {
           </p>
         </div>
 
-        <button
-          onClick={handleSaveAll}
-          disabled={
-            isSavingAll ||
-            scoreEntries.length === 0 ||
-            (isTeacher && (displayedClasses.length === 0 || displayedSubjects.length === 0))
-          }
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all self-start sm:self-auto cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {isSavingAll ? (
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {scoreEntries.length > 0 && (
             <>
-              <RefreshCw className="w-4 h-4 text-amber-300 animate-spin" />
-              Saving to Neon DB...
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4 text-amber-300" />
-              Save All to Neon DB
+              <button
+                onClick={() => handleBulkApproveScoresClass(true)}
+                disabled={isBulkApproving}
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer disabled:opacity-50"
+                title="Approve all students in this class to view and download their results"
+              >
+                {isBulkApproving ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Unlock className="w-3.5 h-3.5" />
+                )}
+                Approve Class ({scoreEntries.length})
+              </button>
+
+              <button
+                onClick={() => handleBulkApproveScoresClass(false)}
+                disabled={isBulkApproving}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-rose-900 hover:bg-rose-800 text-rose-100 border border-rose-700 font-bold text-xs shadow-md transition-all cursor-pointer disabled:opacity-50"
+                title="Withhold result access from all students in this class"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                Withhold All
+              </button>
             </>
           )}
-        </button>
+
+          <button
+            onClick={handleSaveAll}
+            disabled={
+              isSavingAll ||
+              scoreEntries.length === 0 ||
+              (isTeacher && (displayedClasses.length === 0 || displayedSubjects.length === 0))
+            }
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isSavingAll ? (
+              <>
+                <RefreshCw className="w-4 h-4 text-amber-300 animate-spin" />
+                Saving to Neon DB...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 text-amber-300" />
+                Save All to Neon DB
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {savedNotice && (
@@ -841,6 +942,7 @@ export default function ScoresPage() {
                 <th className="px-4 sm:px-6 py-3.5">Remark</th>
                 <th className="px-3 sm:px-4 py-3.5 text-center">DB Status</th>
                 <th className="px-3 sm:px-4 py-3.5 text-center">Save</th>
+                <th className="px-3 sm:px-4 py-3.5 text-center">Clearance</th>
                 <th className="px-4 sm:px-6 py-3.5 text-right">Report</th>
               </tr>
             </thead>
@@ -1046,6 +1148,34 @@ export default function ScoresPage() {
                         >
                           <Save className="w-3.5 h-3.5" />
                           <span className="hidden sm:inline">Save</span>
+                        </button>
+                      </td>
+
+                      {/* Result Clearance Toggle */}
+                      <td className="px-2 sm:px-4 py-3.5 text-center whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStudentApproval(entry.studentId, Boolean(entry.resultsApproved))}
+                          disabled={updatingApprovalId === entry.studentId}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                            entry.resultsApproved
+                              ? "bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300"
+                              : "bg-amber-50 text-amber-900 border border-amber-300 hover:bg-emerald-50 hover:text-emerald-800 hover:border-emerald-300"
+                          }`}
+                          title={
+                            entry.resultsApproved
+                              ? "Click to revoke result & score clearance"
+                              : "Click to approve student to view and download result"
+                          }
+                        >
+                          {updatingApprovalId === entry.studentId ? (
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                          ) : entry.resultsApproved ? (
+                            <Unlock className="w-3 h-3 text-emerald-600" />
+                          ) : (
+                            <Lock className="w-3 h-3 text-amber-600" />
+                          )}
+                          <span>{entry.resultsApproved ? "Approved" : "Withheld"}</span>
                         </button>
                       </td>
 
