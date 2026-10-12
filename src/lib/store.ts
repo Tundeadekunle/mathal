@@ -33,6 +33,12 @@ export interface DemoStudent {
   guardianPhone: string;
   guardianEmail?: string;
   guardianAddress?: string;
+  email?: string;
+  user?: {
+    id: string;
+    email: string;
+    phone?: string | null;
+  };
   status: "ACTIVE" | "GRADUATED" | "TRANSFERRED";
   enrollDate: string;
   resultsApproved?: boolean;

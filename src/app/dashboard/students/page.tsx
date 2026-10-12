@@ -23,6 +23,10 @@ import {
   RefreshCw,
   Lock,
   Unlock,
+  Eye,
+  EyeOff,
+  Mail,
+  KeyRound,
 } from "lucide-react";
 import { validateImageFile, compressPassportImage } from "@/lib/image-utils";
 
@@ -101,6 +105,8 @@ export default function StudentsPage() {
 
   // Registration Form State
   const [formData, setFormData] = useState({
+    email: "",
+    password: "",
     firstName: "",
     lastName: "",
     otherName: "",
@@ -118,6 +124,8 @@ export default function StudentsPage() {
     guardianAddress: "",
   });
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [formPhotoPreview, setFormPhotoPreview] = useState<string | null>(null);
   const [formPhotoError, setFormPhotoError] = useState<string | null>(null);
   const [compressingPhoto, setCompressingPhoto] = useState(false);
@@ -152,11 +160,13 @@ export default function StudentsPage() {
       s.classLevel.replace(/\s+/g, "").toLowerCase() === selectedClass.replace(/\s+/g, "").toLowerCase();
     const fullName = `${s.firstName} ${s.lastName} ${s.otherName || ""}`.toLowerCase();
     const cleanSearch = searchQuery.toLowerCase().trim();
+    const studentEmail = (s.user?.email || s.email || "").toLowerCase();
     const matchesQuery =
       fullName.includes(cleanSearch) ||
       s.admissionNo.toLowerCase().includes(cleanSearch) ||
       s.classLevel.toLowerCase().replace(/\s+/g, "").includes(cleanSearch.replace(/\s+/g, "")) ||
-      s.guardianName.toLowerCase().includes(cleanSearch);
+      s.guardianName.toLowerCase().includes(cleanSearch) ||
+      studentEmail.includes(cleanSearch);
     return matchesSection && matchesClass && matchesQuery;
   });
 
@@ -258,25 +268,53 @@ export default function StudentsPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
+
+    const cleanEmail = formData.email.trim().toLowerCase();
+    const cleanPassword = formData.password.trim();
+
+    if (!cleanEmail) {
+      setFormError("Student portal email is required.");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setFormError("Please enter a valid student email address.");
+      return;
+    }
+
+    if (!cleanPassword || cleanPassword.length < 6) {
+      setFormError("Student portal password is required and must be at least 6 characters.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
       const res = await fetch("/api/students", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          email: cleanEmail,
+          password: cleanPassword,
+        }),
       });
 
+      const data = await res.json();
+
       if (res.ok) {
-        const data = await res.json();
         await loadStudents();
         setShowModal(false);
         setNotification(
-          `Successfully registered ${data.student.firstName} ${data.student.lastName} with Admission No: ${data.student.admissionNo} into Neon DB`
+          `Successfully enrolled ${data.student.firstName} ${data.student.lastName} (Admission No: ${data.student.admissionNo}, Portal Login: ${cleanEmail}) into Neon DB!`
         );
 
         // Reset Form
         setFormData({
+          email: "",
+          password: "",
           firstName: "",
           lastName: "",
           otherName: "",
@@ -295,14 +333,15 @@ export default function StudentsPage() {
         });
         setFormPhotoPreview(null);
         setFormPhotoError(null);
+        setFormError(null);
+        setShowPassword(false);
 
-        setTimeout(() => setNotification(null), 6000);
+        setTimeout(() => setNotification(null), 7000);
       } else {
-        const err = await res.json();
-        alert(err.error || "Failed to register student.");
+        setFormError(data.error || "Failed to register student.");
       }
     } catch {
-      alert("Error saving student to Neon DB.");
+      setFormError("Error saving student to Neon DB.");
     } finally {
       setSubmitting(false);
     }
@@ -322,7 +361,10 @@ export default function StudentsPage() {
         </div>
 
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            setFormError(null);
+            setShowModal(true);
+          }}
           className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition-all self-start sm:self-auto cursor-pointer"
         >
           <UserPlus className="w-4 h-4 text-amber-300" />
@@ -447,9 +489,16 @@ export default function StudentsPage() {
                       <h4 className="font-bold text-slate-900 text-sm">
                         {s.firstName} {s.lastName}
                       </h4>
-                      <span className="font-mono font-semibold text-xs text-emerald-950">
-                        {s.admissionNo}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                        <span className="font-mono font-semibold text-xs text-emerald-950">
+                          {s.admissionNo}
+                        </span>
+                        {(s.user?.email || s.email) && (
+                          <span className="text-emerald-700 font-mono text-[10px] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/50">
+                            {s.user?.email || s.email}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -591,9 +640,14 @@ export default function StudentsPage() {
                           <div className="font-bold text-slate-900">
                             {s.firstName} {s.lastName}
                           </div>
-                          {s.otherName && (
-                            <div className="text-[11px] text-slate-400">{s.otherName}</div>
-                          )}
+                          <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                            {s.otherName && <span>{s.otherName}</span>}
+                            {(s.user?.email || s.email) && (
+                              <span className="text-emerald-700 font-mono text-[10px] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/50">
+                                {s.user?.email || s.email}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -940,8 +994,81 @@ export default function StudentsPage() {
                 </div>
               </div>
 
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    3. Student Portal Login Credentials *
+                  </div>
+                  <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                    Filled on behalf of Student
+                  </span>
+                </div>
+
+                <div className="p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-xl text-emerald-950 text-xs flex items-start gap-2.5">
+                  <KeyRound className="w-4 h-4 text-emerald-700 mt-0.5 flex-shrink-0" />
+                  <div className="text-[11px] leading-relaxed">
+                    <strong className="font-bold text-emerald-900">Admin &amp; Teacher Enrollment:</strong> Provide the student&apos;s email and password. The student can use this email (or their generated Admission Number) along with this password to log in to the Student Portal and take CBT exams.
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Student Portal Email *
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <Mail className="w-3.5 h-3.5" />
+                      </div>
+                      <input
+                        type="email"
+                        required
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        placeholder="student@mathal.edu.ng"
+                        className="w-full text-xs py-2 pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all font-medium"
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      Required for student login in Neon DB.
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Student Portal Password *
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <Lock className="w-3.5 h-3.5" />
+                      </div>
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        required
+                        minLength={6}
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        placeholder="Min 6 characters"
+                        className="w-full text-xs py-2 pl-9 pr-9 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                        title={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      Min 6 characters. Can be changed after login.
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <div className="text-xs font-bold text-slate-400 uppercase tracking-wider pt-2">
-                3. Parent / Guardian Information
+                4. Parent / Guardian Information
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1008,19 +1135,34 @@ export default function StudentsPage() {
                 </div>
               </div>
 
+              {formError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center justify-between">
+                  <span>{formError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setFormError(null)}
+                    className="text-rose-500 hover:text-rose-700 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-emerald-950 bg-amber-400 hover:bg-amber-300 shadow-md"
+                  disabled={submitting}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-emerald-950 bg-amber-400 hover:bg-amber-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-md inline-flex items-center gap-1.5 cursor-pointer"
                 >
-                  Complete Enrollment
+                  {submitting && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{submitting ? "Enrolling Student..." : "Complete Enrollment"}</span>
                 </button>
               </div>
             </form>

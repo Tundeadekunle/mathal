@@ -6,7 +6,7 @@
     "dev": "node ./node_modules/next/dist/bin/next dev",
     "build": "prisma generate && node ./node_modules/next/dist/bin/next build",
     "start": "node ./node_modules/next/dist/bin/next start",
-    "lint": "next lint"
+    "lint": "node ./node_modules/next/dist/bin/next lint"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",

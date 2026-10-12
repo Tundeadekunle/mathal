@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { Section, Gender } from "@prisma/client";
+import bcrypt from "bcryptjs";
+import { Section, Gender, Role } from "@prisma/client";
 
 export async function GET(req: Request) {
   try {
@@ -26,6 +27,7 @@ export async function GET(req: Request) {
         { lastName: { contains: search, mode: "insensitive" } },
         { admissionNo: { contains: search, mode: "insensitive" } },
         { guardianName: { contains: search, mode: "insensitive" } },
+        { user: { email: { contains: search, mode: "insensitive" } } },
       ];
     }
 
@@ -49,10 +51,28 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    // Check authorization if session cookie is present
+    const sessionCookie = req.cookies.get("mathal_session")?.value;
+    if (sessionCookie) {
+      try {
+        const sessionData = JSON.parse(sessionCookie);
+        if (sessionData?.role === "STUDENT") {
+          return NextResponse.json(
+            { error: "Access denied. Only Administrators and Teachers can enroll students." },
+            { status: 403 }
+          );
+        }
+      } catch {
+        // Continue if cookie cannot be parsed
+      }
+    }
+
     const body = await req.json();
     const {
+      email,
+      password,
       firstName,
       lastName,
       otherName,
@@ -70,12 +90,53 @@ export async function POST(req: Request) {
       passportPhoto,
     } = body;
 
+    const cleanEmail = email?.trim().toLowerCase();
+    const cleanPassword = typeof password === "string" ? password.trim() : "";
+
+    // Required fields validation
+    if (!cleanEmail) {
+      return NextResponse.json(
+        { error: "Student email is required." },
+        { status: 400 }
+      );
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      return NextResponse.json(
+        { error: "Please enter a valid student email address." },
+        { status: 400 }
+      );
+    }
+
+    if (!cleanPassword || cleanPassword.length < 6) {
+      return NextResponse.json(
+        { error: "Student password is required and must be at least 6 characters." },
+        { status: 400 }
+      );
+    }
+
     if (!firstName?.trim() || !lastName?.trim() || !guardianName?.trim() || !guardianPhone?.trim()) {
       return NextResponse.json(
         { error: "First name, last name, guardian name and phone are required." },
         { status: 400 }
       );
     }
+
+    // Check if user with this email already exists in Neon DB
+    const existingUser = await prisma.user.findUnique({
+      where: { email: cleanEmail },
+    });
+
+    if (existingUser) {
+      return NextResponse.json(
+        { error: `An account with email "${cleanEmail}" already exists. Please provide a unique email address.` },
+        { status: 409 }
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(cleanPassword, 10);
+    const fullName = [firstName.trim(), otherName?.trim(), lastName.trim()].filter(Boolean).join(" ");
 
     const studentSection = (section as Section) || Section.PRIMARY;
     const prefix = studentSection === Section.PRIMARY ? "MIS/PRI" : "MIS/SEC";
@@ -116,29 +177,57 @@ export async function POST(req: Request) {
       studentSeq++;
     }
 
-    const student = await prisma.student.create({
-      data: {
-        admissionNo,
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        otherName: otherName?.trim() || null,
-        section: studentSection,
-        classLevel,
-        arm,
-        gender: (gender as Gender) || Gender.MALE,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-        bloodGroup: bloodGroup || "O+",
-        address: address || null,
-        passportPhoto: passportPhoto || null,
-        guardianName: guardianName.trim(),
-        guardianPhone: guardianPhone.trim(),
-        guardianEmail: guardianEmail?.trim() || null,
-        guardianAddress: guardianAddress || address || null,
+    const { student } = await prisma.$transaction(
+      async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            email: cleanEmail,
+            name: fullName,
+            passwordHash,
+            role: Role.STUDENT,
+            phone: guardianPhone?.trim() || null,
+            avatarUrl: passportPhoto || null,
+          },
+        });
+
+        const newStudent = await tx.student.create({
+          data: {
+            userId: user.id,
+            admissionNo,
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            otherName: otherName?.trim() || null,
+            section: studentSection,
+            classLevel,
+            arm,
+            gender: (gender as Gender) || Gender.MALE,
+            dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+            bloodGroup: bloodGroup || "O+",
+            address: address || null,
+            passportPhoto: passportPhoto || null,
+            guardianName: guardianName.trim(),
+            guardianPhone: guardianPhone.trim(),
+            guardianEmail: guardianEmail?.trim() || null,
+            guardianAddress: guardianAddress || address || null,
+          },
+          include: {
+            user: {
+              select: { id: true, email: true, phone: true },
+            },
+          },
+        });
+
+        return { user, student: newStudent };
       },
-    });
+      { maxWait: 15000, timeout: 25000 }
+    );
 
     return NextResponse.json(
-      { success: true, student, message: `Student enrolled successfully with ID ${admissionNo}` },
+      {
+        success: true,
+        student,
+        message: `Student enrolled successfully with Admission No: ${admissionNo} and portal login: ${cleanEmail}`,
+      },
       { status: 201 }
     );
   } catch (error: any) {
@@ -149,6 +238,8 @@ export async function POST(req: Request) {
       const target = (error.meta?.target as string[]) || [];
       if (target.includes("admissionNo") || message.includes("admissionNo")) {
         message = "A student with this Admission Number already exists. Please try again.";
+      } else if (target.includes("email") || message.includes("email")) {
+        message = "A user account with this email address already exists. Please provide a different email.";
       }
     }
 
