@@ -57,8 +57,16 @@ export async function POST(req: Request) {
       );
     }
 
+    // Disallow public registration as ADMIN/Management
+    if (role === "ADMIN" || role === Role.ADMIN) {
+      return NextResponse.json(
+        { error: "Management accounts cannot be created via public sign up. Roles must be assigned directly in the database." },
+        { status: 403 }
+      );
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
-    const userRole = (role as Role) || Role.STUDENT;
+    const userRole = role === "TEACHER" || role === Role.TEACHER ? Role.TEACHER : Role.STUDENT;
     const currentYear = new Date().getFullYear();
 
     // Run creation in transaction

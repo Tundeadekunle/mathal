@@ -35,7 +35,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const { signup } = useAuth();
 
-  const [role, setRole] = useState<"STUDENT" | "TEACHER" | "ADMIN">("STUDENT");
+  const [role, setRole] = useState<"STUDENT" | "TEACHER">("STUDENT");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -96,10 +96,8 @@ export default function RegisterPage() {
     if (role === "STUDENT") {
       const prefix = formData.section === "PRIMARY" ? "MIS/PRI" : "MIS/SEC";
       return `${prefix}/${year}/XXX`;
-    } else if (role === "TEACHER") {
-      return `MIS/STF/${year}/XXX`;
     }
-    return `MIS/ADM/${year}/XXX`;
+    return `MIS/STF/${year}/XXX`;
   }, [role, formData.section]);
 
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -236,18 +234,6 @@ export default function RegisterPage() {
             >
               <GraduationCap className="w-3.5 h-3.5" />
               Teacher / Staff
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole("ADMIN")}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                role === "ADMIN"
-                  ? "bg-amber-400 text-emerald-950 shadow-md font-bold"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              Management
             </button>
           </div>
 
