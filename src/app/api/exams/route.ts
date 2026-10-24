@@ -19,9 +19,18 @@ export async function GET(req: Request) {
         submissions: {
           include: {
             student: {
-              select: { firstName: true, lastName: true, admissionNo: true },
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                admissionNo: true,
+                classLevel: true,
+                section: true,
+                user: { select: { email: true } },
+              },
             },
           },
+          orderBy: { submittedAt: "desc" },
         },
       },
       orderBy: { createdAt: "desc" },
