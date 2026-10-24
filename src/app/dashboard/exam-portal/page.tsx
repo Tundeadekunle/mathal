@@ -81,6 +81,7 @@ export default function ExamPortalPage() {
   const [rawQuestionsText, setRawQuestionsText] = useState(SAMPLE_QUESTIONS_TEXT);
   const [defaultMarks, setDefaultMarks] = useState(5);
   const [parseNotice, setParseNotice] = useState<string | null>(null);
+  const [isDetectingAnswers, setIsDetectingAnswers] = useState(false);
 
   // Exam Details Form State
   const [examForm, setExamForm] = useState({
@@ -183,9 +184,55 @@ export default function ExamPortalPage() {
       questions: result.questions,
     }));
 
+    const highConfidenceCount = result.questions.filter((q) => q.confidence === "high").length;
     setParseNotice(
-      `Detected ${result.totalQuestions} questions! Right answers were automatically detected. Total Marks: ${result.totalMarks} pts.`
+      `Detected ${result.totalQuestions} questions! ${highConfidenceCount} right answers verified automatically. Total Marks: ${result.totalMarks} pts.`
     );
+  };
+
+  // Re-verify and auto-solve answers via API/curriculum solver
+  const handleSmartDetectAnswers = async () => {
+    if (!rawQuestionsText.trim() && examForm.questions.length === 0) {
+      setParseNotice("Please paste questions into the box first.");
+      return;
+    }
+
+    setIsDetectingAnswers(true);
+    setParseNotice("Analyzing questions, curriculum facts, and calculating right answers...");
+
+    try {
+      const res = await fetch("/api/exams/detect-answers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rawText: rawQuestionsText,
+          questions: examForm.questions,
+          defaultMarks,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.questions && data.questions.length > 0) {
+          setExamForm((prev) => ({
+            ...prev,
+            questions: data.questions,
+          }));
+          const solvedCount = data.questions.filter((q: any) => q.confidence === "high").length;
+          setParseNotice(
+            `Smart Detection complete! Verified accurate solutions for ${solvedCount} of ${data.questions.length} questions.`
+          );
+          return;
+        }
+      }
+    } catch {
+      // fallback
+    } finally {
+      setIsDetectingAnswers(false);
+    }
+
+    // Local fallback
+    handleParseQuestions();
   };
 
   const handleToggleCorrectAnswer = (questionIdx: number, newChoice: "A" | "B" | "C" | "D") => {
@@ -194,7 +241,8 @@ export default function ExamPortalPage() {
       updated[questionIdx] = {
         ...updated[questionIdx],
         correctAnswer: newChoice,
-        detectedFrom: `Manually set to Option ${newChoice}`,
+        confidence: "high",
+        detectedFrom: `Teacher verified: Option ${newChoice}`,
       };
       return { ...prev, questions: updated };
     });
@@ -880,7 +928,7 @@ export default function ExamPortalPage() {
                         Default Marks per Question:
                       </span>
                       <div className="flex items-center gap-1">
-                        {[2, 5, 10].map((m) => (
+                        {[1, 5, 10].map((m) => (
                           <button
                             key={m}
                             type="button"
@@ -897,14 +945,26 @@ export default function ExamPortalPage() {
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={handleParseQuestions}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-xs shadow-xs transition-all cursor-pointer"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      Parse &amp; Auto-Detect Right Answers
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleParseQuestions}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all cursor-pointer"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        Parse Text
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isDetectingAnswers}
+                        onClick={handleSmartDetectAnswers}
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-xs shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        {isDetectingAnswers ? "Analyzing & Solving..." : "Smart Auto-Detect & Solve Answers"}
+                      </button>
+                    </div>
                   </div>
 
                   {parseNotice && (
@@ -1002,11 +1062,22 @@ export default function ExamPortalPage() {
                           })}
                         </div>
 
-                        {/* Detection Note */}
-                        {q.detectedFrom && (
-                          <div className="text-[10px] text-slate-400 flex items-center gap-1">
-                            <Sparkles className="w-3 h-3 text-amber-500" />
-                            <span>Detection method: {q.detectedFrom}</span>
+                        {/* Detection Note with Confidence Styling */}
+                        {q.confidence === "low" ? (
+                          <div className="text-[11px] p-2 rounded-lg bg-amber-50 border border-amber-300 text-amber-900 flex items-center gap-1.5 font-medium">
+                            <AlertCircle className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                            <span>
+                              <strong>Needs Teacher Confirmation:</strong>{" "}
+                              {q.detectedFrom || "Click Option A, B, C, or D above to set correct answer."}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="text-[11px] p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center gap-1.5 font-medium">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                            <span>
+                              <strong>Detected Right Answer (Option {q.correctAnswer}):</strong>{" "}
+                              {q.detectedFrom}
+                            </span>
                           </div>
                         )}
                       </div>
