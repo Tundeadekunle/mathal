@@ -31,60 +31,145 @@ function cleanText(text: string): string {
 }
 
 /**
- * Extract trailing answer keys like:
- * ANSWERS:
- * 1. A
- * 2. C
- * or 1-A, 2-C
- * or Answers: B, C, D, A
+ * Parse an answer key string into a Map of questionNumber -> "A" | "B" | "C" | "D".
+ * Supports:
+ * 1. Numbered pairs: "1. B, 2. C, 3. A" or "1-B\n2-C" or "1:B, 2:D" or "Q1: B, Q2: C" or "1) B"
+ * 2. Letter sequence: "B, C, A, D, B" or "B C A D B" or unbroken "BCADB" or line-by-line "B\nC\nA"
+ * 3. Text answers: "1. 60\n2. 48\n3. Abuja" (when options are available)
+ */
+export function parseAnswerKey(
+  rawKeyText: string,
+  questions?: Array<{ optionA: string; optionB: string; optionC: string; optionD: string }>
+): Map<number, "A" | "B" | "C" | "D"> {
+  const answerMap = new Map<number, "A" | "B" | "C" | "D">();
+  if (!rawKeyText || !rawKeyText.trim()) return answerMap;
+
+  const text = cleanText(rawKeyText).trim();
+
+  // Pattern 1: Numbered pairs e.g. "1. B" or "1) B" or "1 - B" or "1: B" or "Q1. B" or "Q1: Option B"
+  const numberedRegex = /(?:Q\s*)?(\d+)[\.\)\:\-\=\s]+(?:Option\s*)?\(?([A-D])\)?(?=[\s,\.\;\)]|$)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = numberedRegex.exec(text)) !== null) {
+    const qNum = parseInt(m[1], 10);
+    const ans = m[2].toUpperCase() as "A" | "B" | "C" | "D";
+    if (!isNaN(qNum) && ["A", "B", "C", "D"].includes(ans)) {
+      answerMap.set(qNum, ans);
+    }
+  }
+
+  if (answerMap.size > 0) {
+    return answerMap;
+  }
+
+  // Pattern 2: Comma / space / newline separated sequence of single letters:
+  // e.g. "B, C, B, D, B" or "B C B D B" or "B\nC\nB\nD\nB"
+  const tokens = text
+    .split(/[\s,\t\r\n;]+/)
+    .map((t) => t.trim().toUpperCase())
+    .filter(Boolean);
+
+  const allSingleLetters = tokens.every((t) => /^[A-D]$/.test(t));
+  if (tokens.length > 0 && allSingleLetters) {
+    tokens.forEach((token, idx) => {
+      answerMap.set(idx + 1, token as "A" | "B" | "C" | "D");
+    });
+    return answerMap;
+  }
+
+  // Pattern 3: Single unbroken string of letters e.g. "BCBDB"
+  const compactStr = text.replace(/[^A-Za-z]/g, "").toUpperCase();
+  if (compactStr.length >= 2 && /^[A-D]+$/.test(compactStr)) {
+    for (let i = 0; i < compactStr.length; i++) {
+      answerMap.set(i + 1, compactStr[i] as "A" | "B" | "C" | "D");
+    }
+    return answerMap;
+  }
+
+  // Pattern 4: Numbered text answers: "1. Abuja", "2. 60"
+  if (questions && questions.length > 0) {
+    const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+    lines.forEach((line) => {
+      const match = line.match(/(?:Q\s*)?(\d+)[\.\)\:\-\=]?\s*(.+)/i);
+      if (match) {
+        const qNum = parseInt(match[1], 10);
+        const ansText = match[2].trim();
+        const qIndex = qNum - 1;
+        if (qIndex >= 0 && qIndex < questions.length) {
+          const matchedLetter = matchOptionValue(ansText, {
+            A: questions[qIndex].optionA,
+            B: questions[qIndex].optionB,
+            C: questions[qIndex].optionC,
+            D: questions[qIndex].optionD,
+          });
+          if (matchedLetter) {
+            answerMap.set(qNum, matchedLetter);
+          }
+        }
+      }
+    });
+  }
+
+  return answerMap;
+}
+
+/**
+ * Apply a pasted answer key string directly onto an existing array of parsed questions.
+ */
+export function applyAnswerKeyToQuestions(
+  questions: ParsedQuestion[],
+  rawAnswerKey: string
+): ParsedQuestion[] {
+  if (!rawAnswerKey || !rawAnswerKey.trim()) return questions;
+
+  const answerMap = parseAnswerKey(rawAnswerKey, questions);
+  if (answerMap.size === 0) return questions;
+
+  return questions.map((q) => {
+    if (answerMap.has(q.questionNumber)) {
+      const rightOption = answerMap.get(q.questionNumber)!;
+      return {
+        ...q,
+        correctAnswer: rightOption,
+        confidence: "high" as const,
+        detectedFrom: `Teacher Pasted Right Option: Option ${rightOption}`,
+      };
+    }
+    return q;
+  });
+}
+
+/**
+ * Extract trailing answer keys from question body if present at the end
  */
 function extractTrailingAnswerKeys(rawText: string): {
   bodyText: string;
   answerMap: Map<number, "A" | "B" | "C" | "D">;
 } {
-  const answerMap = new Map<number, "A" | "B" | "C" | "D">();
   const text = cleanText(rawText);
 
   // Match answer key header
-  const answerSectionRegex = /\n\s*(?:ANSWERS?|ANSWER\s+KEYS?|KEYS?|SOLUTIONS?)\s*[:\-]?\s*\n([\s\S]+)$/i;
+  const answerSectionRegex = /\n\s*(?:ANSWERS?|ANSWER\s+KEYS?|KEYS?|SOLUTIONS?|MARKING\s+GUIDE)\s*[:\-]?\s*\n([\s\S]+)$/i;
   const match = text.match(answerSectionRegex);
 
   let bodyText = text;
+  let answerMap = new Map<number, "A" | "B" | "C" | "D">();
+
   if (match) {
     bodyText = text.substring(0, match.index).trim();
     const answerSection = match[1];
-
-    // Pattern 1: "1. A" or "1) B" or "1 - C" or "1: D" or "Q1. A"
-    const lineRegex = /(?:Q\s*)?(\d+)[\.\)\:\-]?\s*(?:option\s*)?\(?([A-D])\)?\b/gi;
-    let m: RegExpExecArray | null;
-    while ((m = lineRegex.exec(answerSection)) !== null) {
-      const qNum = parseInt(m[1], 10);
-      const ans = m[2].toUpperCase() as "A" | "B" | "C" | "D";
-      if (!isNaN(qNum) && ["A", "B", "C", "D"].includes(ans)) {
-        answerMap.set(qNum, ans);
-      }
-    }
-
-    // Pattern 2: Comma or space separated letters: e.g. "Answers: A, B, C, D"
-    if (answerMap.size === 0) {
-      const simpleSeqRegex = /\b([A-D])\b/gi;
-      let seqIndex = 1;
-      while ((m = simpleSeqRegex.exec(answerSection)) !== null) {
-        const ans = m[1].toUpperCase() as "A" | "B" | "C" | "D";
-        answerMap.set(seqIndex++, ans);
-      }
-    }
+    answerMap = parseAnswerKey(answerSection);
   }
 
   return { bodyText, answerMap };
 }
 
 /**
- * Parse raw exam questions text and automatically detect right answers with intelligent solving.
+ * Parse raw exam questions text and automatically detect or apply right answers.
  */
 export function parseExamQuestions(
   rawText: string,
-  defaultMarksPerQuestion = 5
+  defaultMarksPerQuestion = 5,
+  pastedAnswerKey = ""
 ): ParseResult {
   const warnings: string[] = [];
   if (!rawText || !rawText.trim()) {
@@ -97,10 +182,12 @@ export function parseExamQuestions(
     };
   }
 
-  const { bodyText, answerMap } = extractTrailingAnswerKeys(rawText);
+  const { bodyText, answerMap: embeddedAnswerMap } = extractTrailingAnswerKeys(rawText);
+
+  // Parse standalone pasted answer key if provided
+  const explicitKeyMap = pastedAnswerKey ? parseAnswerKey(pastedAnswerKey) : new Map();
 
   // Split into candidate question blocks.
-  // Look for lines starting with question numbers: e.g. "1.", "1)", "Q1.", "Q1:", "Question 1:", "[1]"
   const lines = bodyText.split("\n");
   const questionBlocks: string[] = [];
   let currentBlockLines: string[] = [];
@@ -124,7 +211,6 @@ export function parseExamQuestions(
     questionBlocks.push(currentBlockLines.join("\n"));
   }
 
-  // If no numbered blocks were found, treat double newline as separator
   let finalBlocks = questionBlocks.filter((b) => b.trim().length > 0);
   if (finalBlocks.length <= 1 && bodyText.includes("\n\n")) {
     const splitByEmptyLine = bodyText
@@ -160,10 +246,14 @@ export function parseExamQuestions(
     let explanation = "";
     const qWarnings: string[] = [];
 
-    // Check if answer was in trailing answer key
-    if (answerMap.has(qNumber)) {
-      detectedAnswer = answerMap.get(qNumber)!;
-      detectionMethod = "Answer key section at bottom";
+    // Priority 1: Pasted Answer Key
+    if (explicitKeyMap.has(qNumber)) {
+      detectedAnswer = explicitKeyMap.get(qNumber)!;
+      detectionMethod = `Teacher Pasted Answer Key: Option ${detectedAnswer}`;
+      confidence = "high";
+    } else if (embeddedAnswerMap.has(qNumber)) {
+      detectedAnswer = embeddedAnswerMap.get(qNumber)!;
+      detectionMethod = `Answer key section at bottom: Option ${detectedAnswer}`;
       confidence = "high";
     }
 
@@ -171,22 +261,21 @@ export function parseExamQuestions(
     const questionTextLines: string[] = [];
 
     for (const rawLine of blockLines) {
-      // 1. Check for explicit answer lines e.g.:
+      // Check for explicit answer lines e.g.:
       // "Answer: B", "Ans: B", "Correct: B", "Answer = B", "Ans is B", "Answer: Option B", "Ans: Abuja"
       const ansLinePrefixMatch = rawLine.match(
-        /^(?:(?:Correct\s+)?Answer|Ans|Key|Correct(?:\s+Option)?|Right\s+Answer|Solution)\s*[:=\-]?\s*(?:is\s*)?(?:Option\s*)?(.*)/i
+        /^(?:(?:Correct\s+)?Answer|Ans|Key|Correct(?:\s+Option)?|Right\s+Answer|Solution|Option)\s*[:=\-]?\s*(?:is\s*)?(?:Option\s*)?(.*)/i
       );
 
       if (ansLinePrefixMatch) {
         explicitAnswerRaw = ansLinePrefixMatch[1].trim();
-
-        // Check if raw is a single letter e.g. "B", "(B)", "[B]", "B."
         const singleLetterMatch = explicitAnswerRaw.match(/^\(?([A-D])\)?(?:[\.\:\-\s]|$)/i);
         if (singleLetterMatch) {
-          detectedAnswer = singleLetterMatch[1].toUpperCase() as "A" | "B" | "C" | "D";
-          detectionMethod = `Explicit "${rawLine}" tag`;
-          confidence = "high";
-          // If there's extra text, treat as explanation
+          if (!detectedAnswer) {
+            detectedAnswer = singleLetterMatch[1].toUpperCase() as "A" | "B" | "C" | "D";
+            detectionMethod = `Explicit "${rawLine}" tag`;
+            confidence = "high";
+          }
           const remaining = explicitAnswerRaw.replace(/^\(?([A-D])\)?[\.\:\-\s]*/i, "").trim();
           if (remaining && !explanation) explanation = remaining;
           continue;
@@ -200,8 +289,7 @@ export function parseExamQuestions(
         continue;
       }
 
-      // 2. Check for Option lines:
-      // Supports "A) ...", "A. ...", "(A) ...", "[x] A)", "*A) ...*", "**A)** ...", "A: ..."
+      // Check for Option lines:
       const isAsteriskMarked =
         /^\*{1,2}[A-D][\.\)]/i.test(rawLine) ||
         /\*{1,2}[A-D]\b/i.test(rawLine) ||
@@ -227,15 +315,16 @@ export function parseExamQuestions(
         const optLetter = optionMatch[1].toUpperCase() as "A" | "B" | "C" | "D";
         let optText = optionMatch[2].replace(/\*+/g, "").trim();
 
-        // Check if option text has inline marker (Correct), [x], or (Ans)
         if (
           /\((?:correct|true|right|ans)\)/i.test(optText) ||
           /\[(?:correct|true|right|ans)\]/i.test(optText) ||
           /-\s*(?:correct|ans)\b/i.test(optText)
         ) {
-          detectedAnswer = optLetter;
-          detectionMethod = `Marked with (Correct) tag on option ${optLetter}`;
-          confidence = "high";
+          if (!detectedAnswer) {
+            detectedAnswer = optLetter;
+            detectionMethod = `Marked with (Correct) tag on option ${optLetter}`;
+            confidence = "high";
+          }
           optText = optText
             .replace(/\s*\((?:correct|true|right|ans)\)/i, "")
             .replace(/\s*\[(?:correct|true|right|ans)\]/i, "")
@@ -251,7 +340,7 @@ export function parseExamQuestions(
         continue;
       }
 
-      // 3. Multi-option on single line: "A) 50  B) 60  C) 70  D) 45"
+      // Multi-option on single line: "A) 50  B) 60  C) 70  D) 45"
       const inlineOptionsMatch = rawLine.match(
         /\(?[A]\)?[\.\-\)]\s+(.+?)\s+\(?[B]\)?[\.\-\)]\s+(.+?)\s+\(?[C]\)?[\.\-\)]\s+(.+?)\s+\(?[D]\)?[\.\-\)]\s+(.+)/i
       );
@@ -264,7 +353,6 @@ export function parseExamQuestions(
         continue;
       }
 
-      // If we haven't reached options, it's part of question text
       if (!parsingOptions) {
         let qLine = rawLine;
         if (questionTextLines.length === 0) {
@@ -275,8 +363,7 @@ export function parseExamQuestions(
         }
         questionTextLines.push(qLine.trim());
       } else {
-        // Line after options that didn't match option regex
-        if (/^(?:Ans|Answer|Key|Correct)\b/i.test(rawLine)) {
+        if (/^(?:Ans|Answer|Key|Correct)\b/i.test(rawLine) && !detectedAnswer) {
           const m = rawLine.match(/\b([A-D])\b/i);
           if (m) {
             detectedAnswer = m[1].toUpperCase() as "A" | "B" | "C" | "D";
@@ -289,7 +376,7 @@ export function parseExamQuestions(
 
     questionText = questionTextLines.join(" ").trim();
 
-    // Check if question text itself has embedded answer e.g. "What is 5 x 5? (Ans: B)"
+    // Check if question text itself has embedded answer
     if (!detectedAnswer) {
       const embeddedAnsMatch = questionText.match(/\((?:ans|answer|correct)[:\s]+([A-D])\)/i);
       if (embeddedAnsMatch) {
@@ -300,32 +387,17 @@ export function parseExamQuestions(
       }
     }
 
-    // Fallback extraction if options are all inside questionText
-    if (!options.A && !options.B) {
-      const inlineMatch = questionText.match(
-        /^(.*?)\s+A[\)\.\-]\s+(.+?)\s+B[\)\.\-]\s+(.+?)\s+C[\)\.\-]\s+(.+?)\s+D[\)\.\-]\s+(.+)$/i
-      );
-      if (inlineMatch) {
-        questionText = inlineMatch[1].trim();
-        options.A = inlineMatch[2].trim();
-        options.B = inlineMatch[3].trim();
-        options.C = inlineMatch[4].trim();
-        options.D = inlineMatch[5].trim();
-      }
-    }
-
-    // 4. If explicit answer text was provided as words/numbers (e.g. "Answer: 60" or "Answer: Abuja")
-    // match it against Option values!
+    // Match explicit answer text to options if answer was written as words/numbers (e.g. "Answer: Abuja")
     if (!detectedAnswer && explicitAnswerRaw) {
       const matchedByText = matchOptionValue(explicitAnswerRaw, options);
       if (matchedByText) {
         detectedAnswer = matchedByText;
-        detectionMethod = `Matched explicit answer text "${explicitAnswerRaw}" to Option ${matchedByText}`;
+        detectionMethod = `Matched answer text "${explicitAnswerRaw}" to Option ${matchedByText}`;
         confidence = "high";
       }
     }
 
-    // 5. Check if any option has internal asterisk e.g. "Option text*"
+    // Option internal asterisk
     if (!detectedAnswer) {
       for (const optKey of ["A", "B", "C", "D"] as const) {
         if (options[optKey].includes("*")) {
@@ -338,8 +410,7 @@ export function parseExamQuestions(
       }
     }
 
-    // 6. INTELLIGENT QUESTION SOLVER (Math, Science, Geography, English, Curriculum facts)
-    // If no answer has been explicitly marked, let the system solve the question!
+    // Intelligent Curriculum & Math Question Solver
     if (!detectedAnswer) {
       const solveResult = solveQuestion(questionText, options);
       if (solveResult.detectedAnswer) {
@@ -350,14 +421,14 @@ export function parseExamQuestions(
       }
     }
 
-    // 7. If still unresolved, default to "A" with low confidence and clear warning
+    // Fallback if still unresolved
     if (!detectedAnswer) {
       detectedAnswer = "A";
-      detectionMethod = "Unresolved (Defaulted to A - Please click correct option)";
+      detectionMethod = "Unresolved (Defaulted to A - Please paste right options or click option)";
       confidence = "low";
       unresolvedCount++;
       qWarnings.push(
-        "Could not detect right answer automatically. Defaulted to Option A; please click the correct option to confirm."
+        "Could not detect right answer automatically. Please paste right options in the Answer Key box or click the correct option."
       );
     }
 

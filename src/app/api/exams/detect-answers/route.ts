@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
-import { parseExamQuestions, ParsedQuestion } from "@/lib/cbt-parser";
+import { parseExamQuestions, applyAnswerKeyToQuestions, ParsedQuestion } from "@/lib/cbt-parser";
 import { solveQuestion } from "@/lib/cbt-solver";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { rawText, questions: inputQuestions, defaultMarks = 5 } = body;
+    const { rawText, rawAnswerKey = "", questions: inputQuestions, defaultMarks = 5 } = body;
 
     let questions: ParsedQuestion[] = [];
 
     if (rawText && typeof rawText === "string") {
-      const parsed = parseExamQuestions(rawText, defaultMarks);
+      const parsed = parseExamQuestions(rawText, defaultMarks, rawAnswerKey);
       questions = parsed.questions;
     } else if (Array.isArray(inputQuestions)) {
       questions = inputQuestions.map((q: any, idx: number) => {
@@ -21,7 +21,6 @@ export async function POST(req: Request) {
           D: q.optionD || "",
         };
 
-        // If answer was already set and high confidence, keep it, otherwise solve
         let currentAns = q.correctAnswer;
         let method = q.detectedFrom || "";
         let confidence = q.confidence || "medium";
@@ -50,37 +49,44 @@ export async function POST(req: Request) {
       });
     }
 
-    // Pass each question through the solver to ensure high accuracy
-    const enhanced = questions.map((q) => {
-      const options = {
-        A: q.optionA,
-        B: q.optionB,
-        C: q.optionC,
-        D: q.optionD,
-      };
+    // Apply explicit pasted answer key if provided
+    if (rawAnswerKey && rawAnswerKey.trim()) {
+      questions = applyAnswerKeyToQuestions(questions, rawAnswerKey);
+    } else {
+      // Re-solve questions that don't have high confidence
+      questions = questions.map((q) => {
+        if (q.confidence === "high") return q;
 
-      const solved = solveQuestion(q.questionText, options);
-      if (solved.detectedAnswer) {
-        return {
-          ...q,
-          correctAnswer: solved.detectedAnswer,
-          detectedFrom: solved.reason,
-          confidence: solved.confidence,
-          explanation: q.explanation || solved.reason,
+        const options = {
+          A: q.optionA,
+          B: q.optionB,
+          C: q.optionC,
+          D: q.optionD,
         };
-      }
 
-      return q;
-    });
+        const solved = solveQuestion(q.questionText, options);
+        if (solved.detectedAnswer) {
+          return {
+            ...q,
+            correctAnswer: solved.detectedAnswer,
+            detectedFrom: solved.reason,
+            confidence: solved.confidence,
+            explanation: q.explanation || solved.reason,
+          };
+        }
 
-    const totalMarks = enhanced.reduce((sum, q) => sum + (q.marks || 5), 0);
+        return q;
+      });
+    }
+
+    const totalMarks = questions.reduce((sum, q) => sum + (q.marks || 5), 0);
 
     return NextResponse.json({
       success: true,
-      questions: enhanced,
-      totalQuestions: enhanced.length,
+      questions,
+      totalQuestions: questions.length,
       totalMarks,
-      message: `Detected and verified answers for ${enhanced.length} questions.`,
+      message: `Detected and verified answers for ${questions.length} questions.`,
     });
   } catch (error: any) {
     console.error("Error detecting answers:", error);

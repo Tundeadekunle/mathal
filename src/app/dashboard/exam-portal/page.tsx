@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { dataStore, DemoCbtExam, DemoExamSubmission } from "@/lib/store";
-import { parseExamQuestions, ParsedQuestion } from "@/lib/cbt-parser";
+import { parseExamQuestions, applyAnswerKeyToQuestions, ParsedQuestion } from "@/lib/cbt-parser";
 import {
   PRIMARY_CLASSES,
   SECONDARY_CLASSES,
@@ -23,6 +23,7 @@ import {
   Printer,
   Database,
   Trash2,
+  Key,
 } from "lucide-react";
 
 interface ExtendedSubmission extends DemoExamSubmission {
@@ -79,6 +80,7 @@ export default function ExamPortalPage() {
   // Create Exam Form Mode: "paste" | "manual"
   const [createMode, setCreateMode] = useState<"paste" | "manual">("paste");
   const [rawQuestionsText, setRawQuestionsText] = useState(SAMPLE_QUESTIONS_TEXT);
+  const [rawAnswerKey, setRawAnswerKey] = useState("1. B, 2. C, 3. B, 4. D, 5. B");
   const [defaultMarks, setDefaultMarks] = useState(5);
   const [parseNotice, setParseNotice] = useState<string | null>(null);
   const [isDetectingAnswers, setIsDetectingAnswers] = useState(false);
@@ -167,13 +169,13 @@ export default function ExamPortalPage() {
     setSubmissions(dataStore.getSubmissions());
   };
 
-  // Run parser on raw pasted text
+  // Run parser on raw pasted text and pasted right options
   const handleParseQuestions = () => {
     if (!rawQuestionsText.trim()) {
       setParseNotice("Please paste questions into the box first.");
       return;
     }
-    const result = parseExamQuestions(rawQuestionsText, defaultMarks);
+    const result = parseExamQuestions(rawQuestionsText, defaultMarks, rawAnswerKey);
     if (result.questions.length === 0) {
       setParseNotice("Could not detect any valid questions. Please check the numbering and options.");
       return;
@@ -186,8 +188,28 @@ export default function ExamPortalPage() {
 
     const highConfidenceCount = result.questions.filter((q) => q.confidence === "high").length;
     setParseNotice(
-      `Detected ${result.totalQuestions} questions! ${highConfidenceCount} right answers verified automatically. Total Marks: ${result.totalMarks} pts.`
+      `Detected ${result.totalQuestions} questions! ${highConfidenceCount} right answers applied from your pasted options/key. Total Marks: ${result.totalMarks} pts.`
     );
+  };
+
+  // Explicitly apply pasted right options to the questions
+  const handleApplyAnswerKey = () => {
+    if (!rawAnswerKey.trim()) {
+      setParseNotice("Please paste or type the right options in the Answer Key box.");
+      return;
+    }
+
+    if (examForm.questions.length === 0) {
+      handleParseQuestions();
+      return;
+    }
+
+    const updated = applyAnswerKeyToQuestions(examForm.questions, rawAnswerKey);
+    setExamForm((prev) => ({
+      ...prev,
+      questions: updated,
+    }));
+    setParseNotice(`Successfully applied pasted right options to all ${updated.length} questions!`);
   };
 
   // Re-verify and auto-solve answers via API/curriculum solver
@@ -198,7 +220,7 @@ export default function ExamPortalPage() {
     }
 
     setIsDetectingAnswers(true);
-    setParseNotice("Analyzing questions, curriculum facts, and calculating right answers...");
+    setParseNotice("Analyzing questions, curriculum facts, and applying right answers...");
 
     try {
       const res = await fetch("/api/exams/detect-answers", {
@@ -206,6 +228,7 @@ export default function ExamPortalPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           rawText: rawQuestionsText,
+          rawAnswerKey,
           questions: examForm.questions,
           defaultMarks,
         }),
@@ -220,7 +243,7 @@ export default function ExamPortalPage() {
           }));
           const solvedCount = data.questions.filter((q: any) => q.confidence === "high").length;
           setParseNotice(
-            `Smart Detection complete! Verified accurate solutions for ${solvedCount} of ${data.questions.length} questions.`
+            `Detection complete! Verified right answers for ${solvedCount} of ${data.questions.length} questions.`
           );
           return;
         }
@@ -231,7 +254,6 @@ export default function ExamPortalPage() {
       setIsDetectingAnswers(false);
     }
 
-    // Local fallback
     handleParseQuestions();
   };
 
@@ -242,7 +264,7 @@ export default function ExamPortalPage() {
         ...updated[questionIdx],
         correctAnswer: newChoice,
         confidence: "high",
-        detectedFrom: `Teacher verified: Option ${newChoice}`,
+        detectedFrom: `Teacher selected: Option ${newChoice}`,
       };
       return { ...prev, questions: updated };
     });
@@ -922,6 +944,45 @@ export default function ExamPortalPage() {
                     className="w-full font-mono text-xs p-3.5 bg-slate-900 text-emerald-300 border border-slate-700 rounded-xl focus:ring-2 focus:ring-emerald-500 leading-relaxed"
                   />
 
+                  {/* OPTIONAL/SEPARATE ANSWER KEY INPUT */}
+                  <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                        <Key className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Paste Right Options / Marking Guide Key:</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRawAnswerKey("1. B, 2. C, 3. B, 4. B, 5. C");
+                        }}
+                        className="text-[11px] text-amber-800 hover:text-amber-950 font-bold underline cursor-pointer"
+                      >
+                        Sample Key
+                      </button>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        value={rawAnswerKey}
+                        onChange={(e) => setRawAnswerKey(e.target.value)}
+                        placeholder="e.g. 1. B, 2. C, 3. B, 4. D  OR  B, C, B, D, A  OR  1-B, 2-C"
+                        className="flex-1 font-mono text-xs px-3 py-2 bg-white text-slate-900 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 shadow-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyAnswerKey}
+                        className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-lg transition-all cursor-pointer whitespace-nowrap shadow-xs flex items-center justify-center gap-1.5"
+                      >
+                        <Key className="w-3.5 h-3.5" />
+                        Apply Right Options
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-amber-800 leading-normal">
+                      Have a separate answer sheet? Paste it above. Accepts formats like: <span className="font-mono font-semibold">1. B, 2. C</span> or <span className="font-mono font-semibold">B, C, B, D</span> or <span className="font-mono font-semibold">1-B 2-C</span>.
+                    </p>
+                  </div>
+
                   <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-slate-600 font-semibold">
@@ -976,9 +1037,43 @@ export default function ExamPortalPage() {
                 </div>
               )}
 
-              {/* REVIEW DETECTED QUESTIONS LIST */}
+              {/* QUICK ANSWER KEY STRIP & REVIEW DETECTED QUESTIONS LIST */}
               {examForm.questions.length > 0 && (
                 <div className="space-y-3 pt-2">
+                  {/* QUICK ANSWER KEY STRIP */}
+                  <div className="p-3 bg-slate-100 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-1">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                        <Key className="w-3.5 h-3.5 text-emerald-700" />
+                        Quick Answer Key Summary (Click any letter to change)
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-mono">
+                        {examForm.questions.map((q) => `${q.questionNumber}:${q.correctAnswer}`).join("  |  ")}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                      {examForm.questions.map((q, idx) => (
+                        <div key={idx} className="flex items-center bg-white border border-slate-200 rounded-lg p-1 text-[11px] shadow-2xs">
+                          <span className="font-bold text-slate-500 mr-1 pl-1">Q{q.questionNumber}:</span>
+                          {(["A", "B", "C", "D"] as const).map((letter) => (
+                            <button
+                              key={letter}
+                              type="button"
+                              onClick={() => handleToggleCorrectAnswer(idx, letter)}
+                              className={`w-5 h-5 rounded font-bold text-[10px] flex items-center justify-center transition-all cursor-pointer ${
+                                q.correctAnswer === letter
+                                  ? "bg-emerald-700 text-white shadow-2xs font-black"
+                                  : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                              }`}
+                            >
+                              {letter}
+                            </button>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
                       <span>Detected Questions ({examForm.questions.length} Items)</span>
