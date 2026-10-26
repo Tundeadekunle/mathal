@@ -185,11 +185,14 @@ model CbtExam {
   durationMinutes Int              @default(30)
   totalMarks      Int              @default(100)
   passPercentage  Int              @default(50)
-  isActive        Boolean          @default(true)
-  createdBy       String
-  createdAt       DateTime         @default(now())
+  isActive           Boolean          @default(true)
+  createdBy          String
+  scheduledPublishAt DateTime?
+  publishedAt        DateTime         @default(now())
+  expiresAt          DateTime?
+  createdAt          DateTime         @default(now())
 
-  questions       CbtQuestion[]
+  questions          CbtQuestion[]
   submissions     ExamSubmission[]
 }
 

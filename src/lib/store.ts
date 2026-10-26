@@ -135,7 +135,12 @@ export interface DemoCbtExam {
   passPercentage: number;
   isActive: boolean;
   createdBy: string;
+  scheduledPublishAt?: string | null;
+  publishedAt?: string;
+  expiresAt?: string | null;
+  createdAt?: string;
   questions: DemoCbtQuestion[];
+  submissions?: any[];
 }
 
 export interface DemoExamSubmission {
@@ -553,9 +558,18 @@ export const dataStore = {
       // fallback
     }
 
+    const pubDate = exam.scheduledPublishAt ? new Date(exam.scheduledPublishAt) : new Date();
+    const expDate = exam.expiresAt
+      ? new Date(exam.expiresAt)
+      : new Date(pubDate.getTime() + 24 * 60 * 60 * 1000);
+
     const newExam: DemoCbtExam = {
       ...exam,
       id: `cbt_${Date.now()}`,
+      scheduledPublishAt: exam.scheduledPublishAt || null,
+      publishedAt: exam.publishedAt || pubDate.toISOString(),
+      expiresAt: expDate.toISOString(),
+      createdAt: new Date().toISOString(),
     };
     state.exams.unshift(newExam);
     return newExam;

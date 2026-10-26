@@ -20,7 +20,17 @@ import {
   UserCheck,
   ShieldCheck,
   LogIn,
+  Calendar,
+  Lock,
+  RotateCcw,
+  Send,
+  Eye,
 } from "lucide-react";
+import {
+  getExamAvailability,
+  formatExamDate,
+  formatRemainingTime,
+} from "@/lib/cbt-availability";
 
 interface QuestionReviewItem {
   questionId: string;
@@ -83,6 +93,63 @@ export default function TakeExamPage() {
           if (d.exam) {
             setExam(d.exam);
             setTimeLeftSeconds(d.exam.durationMinutes * 60);
+
+            // Check if current user has an existing submission for this exam
+            if (user && d.exam.submissions && d.exam.submissions.length > 0) {
+              const existingSub = d.exam.submissions.find(
+                (s: any) =>
+                  s.studentId === user.id ||
+                  s.studentId === user.studentId ||
+                  (user.admissionNo && s.student?.admissionNo === user.admissionNo) ||
+                  (user.email && s.student?.user?.email?.toLowerCase() === user.email.toLowerCase())
+              );
+              if (existingSub) {
+                try {
+                  const savedAnswers = existingSub.answersJson ? JSON.parse(existingSub.answersJson) : {};
+                  const gradeInfo = computeGrade(existingSub.percentage);
+                  const breakdown: QuestionReviewItem[] = d.exam.questions.map((q: any) => {
+                    const ans = (savedAnswers[q.id] || savedAnswers[String(q.questionNumber)] || "").toUpperCase();
+                    const isCorrect = ans && ans === q.correctAnswer.toUpperCase();
+                    return {
+                      questionId: q.id,
+                      questionNumber: q.questionNumber,
+                      questionText: q.questionText,
+                      optionA: q.optionA,
+                      optionB: q.optionB,
+                      optionC: q.optionC,
+                      optionD: q.optionD,
+                      userAnswer: ans || "Unanswered",
+                      correctAnswer: q.correctAnswer,
+                      marksPossible: q.marks,
+                      marksAwarded: isCorrect ? q.marks : 0,
+                      isCorrect: !!isCorrect,
+                      explanation: q.explanation,
+                    };
+                  });
+                  setSubmissionResult({
+                    score: existingSub.score,
+                    totalPossible: existingSub.totalPossible,
+                    percentage: existingSub.percentage,
+                    grade: gradeInfo.grade,
+                    remark: gradeInfo.remark,
+                    passed: existingSub.passed,
+                    breakdown,
+                    student: {
+                      id: existingSub.student?.id || user.studentId,
+                      name: existingSub.student ? `${existingSub.student.firstName} ${existingSub.student.lastName}` : user.name,
+                      admissionNo: existingSub.student?.admissionNo || user.admissionNo,
+                      email: existingSub.student?.user?.email || user.email,
+                      classLevel: existingSub.student?.classLevel || d.exam.classLevel,
+                      section: existingSub.student?.section || d.exam.section,
+                    },
+                    submittedAt: existingSub.submittedAt,
+                  });
+                  setIsSubmitted(true);
+                } catch {
+                  // ignore
+                }
+              }
+            }
             return;
           }
         }
@@ -96,7 +163,7 @@ export default function TakeExamPage() {
       }
     }
     loadExam();
-  }, [examId]);
+  }, [examId, user]);
 
   // Live Timer Countdown
   useEffect(() => {
@@ -223,9 +290,15 @@ export default function TakeExamPage() {
           }
           return;
         }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        alert(errData.error || "Submission rejected. The exam is not currently open for submission.");
+        setIsSubmitting(false);
+        setShowConfirmModal(false);
+        return;
       }
     } catch {
-      // fallback to local store
+      // fallback to local store if server offline
       dataStore.submitExam({
         examId: exam.id,
         examTitle: exam.title,
@@ -295,6 +368,9 @@ export default function TakeExamPage() {
       </div>
     );
   }
+
+  const isStaff = user?.role === "ADMIN" || user?.role === "TEACHER";
+  const avail = getExamAvailability(exam);
 
   // Format timer MM:SS
   const mins = Math.floor(timeLeftSeconds / 60);
@@ -529,9 +605,141 @@ export default function TakeExamPage() {
     );
   }
 
+  // SCHEDULED CHECK (STUDENTS)
+  if (!isStaff && avail?.isScheduled) {
+    return (
+      <div className="max-w-md mx-auto py-16 px-4 text-center">
+        <div className="bg-white rounded-3xl border border-blue-200 shadow-xl p-8 space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-700 mx-auto flex items-center justify-center">
+            <Calendar className="w-8 h-8" />
+          </div>
+          <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-900">
+            CBT Examination Scheduled
+          </span>
+          <h2 className="text-xl font-serif font-black text-slate-900">{exam.title}</h2>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            This examination is scheduled for a future date and is not yet open to students.
+          </p>
+          <div className="p-3 bg-blue-50/70 rounded-2xl border border-blue-200 font-bold text-blue-950 text-sm">
+            Opens: {formatExamDate(avail.publishDate)}
+          </div>
+          <div className="text-xs text-blue-800 font-semibold">
+            ⏳ Opens in <strong>{formatRemainingTime(avail.timeUntilOpenMs)}</strong>
+          </div>
+          <p className="text-[11px] text-slate-400">
+            Once opened, this examination will be accessible for exactly 24 hours.
+          </p>
+          <div className="pt-2">
+            <Link
+              href="/dashboard/exam-portal"
+              className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span>Return to CBT Portal</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 24-HOUR EXPIRED CHECK (STUDENTS)
+  if (!isStaff && avail?.isExpired) {
+    return (
+      <div className="max-w-md mx-auto py-16 px-4 text-center">
+        <div className="bg-white rounded-3xl border border-rose-200 shadow-xl p-8 space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-700 mx-auto flex items-center justify-center">
+            <Lock className="w-8 h-8" />
+          </div>
+          <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-900">
+            Examination Access Closed
+          </span>
+          <h2 className="text-xl font-serif font-black text-slate-900">{exam.title}</h2>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            This CBT examination was available for 24 hours and expired on:
+          </p>
+          <div className="p-3 bg-rose-50/80 rounded-2xl border border-rose-200 font-bold text-rose-950 text-sm">
+            {formatExamDate(avail.expiryDate)}
+          </div>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Per Mathal International Schools policy, CBT exams are strictly accessible to students for 24 hours following publication. Students can no longer access or submit this exam.
+          </p>
+          <div className="pt-2">
+            <Link
+              href="/dashboard/exam-portal"
+              className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span>Return to CBT Portal</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // EXAM HALL IN-PROGRESS VIEW
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* Teacher Preview Banner */}
+      {isStaff && avail && (avail.isScheduled || avail.isExpired) && (
+        <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3.5 sm:p-4 text-xs text-amber-950 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-2.5">
+            <Eye className="w-4 h-4 text-amber-700 flex-shrink-0" />
+            <div>
+              <span className="font-bold">Teacher Preview Mode: </span>
+              {avail.isScheduled ? (
+                <span>
+                  This exam is currently <strong>Scheduled</strong> (Opens {formatExamDate(avail.publishDate)}). Students cannot access it yet.
+                </span>
+              ) : (
+                <span>
+                  The 24-hour student access window <strong>Expired on {formatExamDate(avail.expiryDate)}</strong>. Students can no longer access it.
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto flex-shrink-0">
+            {avail.isScheduled && (
+              <button
+                type="button"
+                onClick={async () => {
+                  await fetch(`/api/exams/${exam.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "publish_now" }),
+                  });
+                  window.location.reload();
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+              >
+                <Send className="w-3 h-3" />
+                <span>Publish Immediately</span>
+              </button>
+            )}
+
+            {avail.isExpired && (
+              <button
+                type="button"
+                onClick={async () => {
+                  await fetch(`/api/exams/${exam.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "reopen_24h" }),
+                  });
+                  window.location.reload();
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Reopen for 24 Hours</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Exam Hall Top Bar */}
       <div className="sticky top-14 sm:static z-20 bg-emerald-950 text-white rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-lg border border-emerald-800/80 flex items-center justify-between gap-3">
         <div className="min-w-0">
@@ -542,6 +750,11 @@ export default function TakeExamPage() {
           <h2 className="text-sm sm:text-lg font-bold text-white mt-0.5 truncate">{exam.title}</h2>
           <div className="text-[11px] sm:text-xs text-emerald-300 truncate">
             Candidate: <strong>{user.name}</strong> ({user.email}) &bull; Class: {exam.classLevel}
+            {avail && (
+              <span className="ml-2 font-mono text-amber-300 hidden md:inline">
+                &bull; ⏳ Closes: {formatExamDate(avail.expiryDate)}
+              </span>
+            )}
           </div>
         </div>
 

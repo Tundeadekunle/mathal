@@ -31,6 +31,51 @@ export async function POST(
       return NextResponse.json({ error: "Exam not found." }, { status: 404 });
     }
 
+    // Enforce Scheduling & 24-Hour Availability Window
+    const now = new Date();
+
+    if (exam.scheduledPublishAt && new Date(exam.scheduledPublishAt).getTime() > now.getTime()) {
+      const openDateStr = new Date(exam.scheduledPublishAt).toLocaleString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+      return NextResponse.json(
+        {
+          error: `Examination not yet open: This CBT exam is scheduled to open on ${openDateStr}. Submissions cannot be made before the exam opens.`,
+          isScheduled: true,
+          scheduledPublishAt: exam.scheduledPublishAt,
+        },
+        { status: 403 }
+      );
+    }
+
+    const expiryTime = exam.expiresAt
+      ? new Date(exam.expiresAt)
+      : new Date(new Date(exam.publishedAt || exam.createdAt).getTime() + 24 * 60 * 60 * 1000);
+
+    if (now.getTime() >= expiryTime.getTime()) {
+      const closedDateStr = expiryTime.toLocaleString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+      return NextResponse.json(
+        {
+          error: `Examination access closed: CBT exams are strictly accessible for 24 hours after publishing. This exam expired on ${closedDateStr}.`,
+          isExpired: true,
+          expiresAt: expiryTime,
+        },
+        { status: 403 }
+      );
+    }
+
     // Resolve student across ID, userId, admissionNo, or email
     let student = await prisma.student.findFirst({
       where: {

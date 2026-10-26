@@ -69,6 +69,24 @@ export async function POST(req: Request) {
       );
     }
 
+    // Determine scheduling and 24-hour expiration dates
+    const now = new Date();
+    let scheduledDate: Date | null = null;
+    let publishDate = now;
+
+    if (body.scheduledPublishAt) {
+      const parsed = new Date(body.scheduledPublishAt);
+      if (!isNaN(parsed.getTime())) {
+        scheduledDate = parsed;
+        publishDate = parsed;
+      }
+    }
+
+    // Exam expires exactly 24 hours after publishing
+    const expiryDate = body.expiresAt
+      ? new Date(body.expiresAt)
+      : new Date(publishDate.getTime() + 24 * 60 * 60 * 1000);
+
     const exam = await prisma.cbtExam.create({
       data: {
         title: title.trim(),
@@ -81,6 +99,9 @@ export async function POST(req: Request) {
         passPercentage: Number(passPercentage) || 50,
         isActive: true,
         createdBy,
+        scheduledPublishAt: scheduledDate,
+        publishedAt: publishDate,
+        expiresAt: expiryDate,
         questions: {
           create: questions.map((q: any, idx: number) => ({
             questionNumber: q.questionNumber || idx + 1,

@@ -24,7 +24,16 @@ import {
   Database,
   Trash2,
   Key,
+  Calendar,
+  Lock,
+  RotateCcw,
+  Send,
+  Eye,
 } from "lucide-react";
+import {
+  getExamAvailability,
+  formatExamDate,
+} from "@/lib/cbt-availability";
 
 interface ExtendedSubmission extends DemoExamSubmission {
   admissionNo?: string;
@@ -76,6 +85,7 @@ export default function ExamPortalPage() {
   const [submissions, setSubmissions] = useState<ExtendedSubmission[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [sectionFilter, setSectionFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "OPEN" | "SCHEDULED" | "EXPIRED">("ALL");
 
   // Create Exam Form Mode: "paste" | "manual"
   const [createMode, setCreateMode] = useState<"paste" | "manual">("paste");
@@ -94,6 +104,8 @@ export default function ExamPortalPage() {
     subject: "Mathematics",
     durationMinutes: 20,
     passPercentage: 50,
+    publishScheduleMode: "immediate" as "immediate" | "scheduled",
+    scheduledPublishAt: "",
     questions: [] as ParsedQuestion[],
   });
 
@@ -309,6 +321,19 @@ export default function ExamPortalPage() {
 
     const totalMarks = examForm.questions.reduce((sum, q) => sum + q.marks, 0);
 
+    let scheduledDate: string | null = null;
+    let publishedAt = new Date().toISOString();
+    let expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    if (examForm.publishScheduleMode === "scheduled" && examForm.scheduledPublishAt) {
+      const parsed = new Date(examForm.scheduledPublishAt);
+      if (!isNaN(parsed.getTime())) {
+        scheduledDate = parsed.toISOString();
+        publishedAt = parsed.toISOString();
+        expiresAt = new Date(parsed.getTime() + 24 * 60 * 60 * 1000).toISOString();
+      }
+    }
+
     const payload = {
       title: examForm.title.trim(),
       description: examForm.description.trim() || undefined,
@@ -320,6 +345,9 @@ export default function ExamPortalPage() {
       passPercentage: Number(examForm.passPercentage),
       isActive: true,
       createdBy: user?.name || "Teacher",
+      scheduledPublishAt: scheduledDate,
+      publishedAt,
+      expiresAt,
       questions: examForm.questions.map((q, idx) => ({
         questionNumber: idx + 1,
         questionText: q.questionText,
@@ -352,6 +380,8 @@ export default function ExamPortalPage() {
           subject: "Mathematics",
           durationMinutes: 20,
           passPercentage: 50,
+          publishScheduleMode: "immediate",
+          scheduledPublishAt: "",
           questions: [],
         });
         setParseNotice(null);
@@ -367,6 +397,48 @@ export default function ExamPortalPage() {
     });
     loadData();
     setShowCreateModal(false);
+  };
+
+  // Teacher actions: Publish Now, Reopen for 24h, or Delete
+  const handleExamAction = async (examId: string, action: "publish_now" | "reopen_24h" | "delete") => {
+    try {
+      if (action === "delete") {
+        if (!confirm("Are you sure you want to delete this CBT examination?")) return;
+        const res = await fetch(`/api/exams/${examId}`, { method: "DELETE" });
+        if (res.ok) {
+          await loadData();
+          return;
+        }
+      } else {
+        const res = await fetch(`/api/exams/${examId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action }),
+        });
+        if (res.ok) {
+          await loadData();
+          return;
+        }
+      }
+    } catch {
+      // fallback for local mock
+    }
+
+    // Local fallback
+    const target = dataStore.getExamById(examId);
+    if (target) {
+      const now = new Date();
+      if (action === "publish_now") {
+        target.scheduledPublishAt = null;
+        target.publishedAt = now.toISOString();
+        target.expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+        target.isActive = true;
+      } else if (action === "reopen_24h") {
+        target.expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+        target.isActive = true;
+      }
+      loadData();
+    }
   };
 
   // Open Result Slip Modal
@@ -468,10 +540,16 @@ export default function ExamPortalPage() {
   };
 
   const role = user?.role || "STUDENT";
-  const filteredExams =
-    sectionFilter === "ALL"
-      ? exams
-      : exams.filter((e) => e.section === sectionFilter);
+  const isStaff = role === "ADMIN" || role === "TEACHER";
+
+  const filteredExams = exams.filter((e) => {
+    if (sectionFilter !== "ALL" && e.section !== sectionFilter) return false;
+    if (statusFilter !== "ALL") {
+      const avail = getExamAvailability(e);
+      if (avail.status !== statusFilter) return false;
+    }
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -485,11 +563,11 @@ export default function ExamPortalPage() {
             </span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Conduct timed online assessments, paste question banks with automatic answer detection, and record student CBT marks in real time.
+            Conduct timed online assessments, schedule exam releases, enforce 24-hour student access windows, and record CBT marks in real time.
           </p>
         </div>
 
-        {role !== "STUDENT" && (
+        {isStaff && (
           <button
             onClick={() => {
               setShowCreateModal(true);
@@ -506,114 +584,289 @@ export default function ExamPortalPage() {
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all self-start sm:self-auto cursor-pointer"
           >
             <Plus className="w-4 h-4 text-amber-300" />
-            Create CBT Exam (Paste / Auto-Detect)
+            Create CBT Exam (Schedule / Auto-Detect)
           </button>
         )}
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-1.5 sm:gap-2 bg-white p-1.5 sm:p-2 rounded-xl border border-slate-200/80 shadow-xs w-full sm:w-fit overflow-x-auto">
-        <button
-          onClick={() => setSectionFilter("ALL")}
-          className={`px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex-1 sm:flex-initial text-center cursor-pointer ${
-            sectionFilter === "ALL"
-              ? "bg-emerald-800 text-white shadow-xs"
-              : "text-slate-600 hover:bg-slate-100"
-          }`}
-        >
-          All Exams ({exams.length})
-        </button>
-        <button
-          onClick={() => setSectionFilter("PRIMARY")}
-          className={`px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex-1 sm:flex-initial text-center cursor-pointer ${
-            sectionFilter === "PRIMARY"
-              ? "bg-amber-600 text-white shadow-xs"
-              : "text-slate-600 hover:bg-slate-100"
-          }`}
-        >
-          Primary Wing
-        </button>
-        <button
-          onClick={() => setSectionFilter("SECONDARY")}
-          className={`px-3 py-2 sm:py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex-1 sm:flex-initial text-center cursor-pointer ${
-            sectionFilter === "SECONDARY"
-              ? "bg-blue-600 text-white shadow-xs"
-              : "text-slate-600 hover:bg-slate-100"
-          }`}
-        >
-          Secondary Wing
-        </button>
+      {/* Filter Tabs: Wings & Availability Status */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-2 bg-white p-1.5 rounded-xl border border-slate-200/80 shadow-xs overflow-x-auto">
+          <button
+            onClick={() => setSectionFilter("ALL")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              sectionFilter === "ALL"
+                ? "bg-emerald-800 text-white shadow-xs"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            All Wings
+          </button>
+          <button
+            onClick={() => setSectionFilter("PRIMARY")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              sectionFilter === "PRIMARY"
+                ? "bg-amber-600 text-white shadow-xs"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            Primary Wing
+          </button>
+          <button
+            onClick={() => setSectionFilter("SECONDARY")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              sectionFilter === "SECONDARY"
+                ? "bg-blue-600 text-white shadow-xs"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            Secondary Wing
+          </button>
+        </div>
+
+        {/* Availability Filter */}
+        <div className="flex items-center gap-1.5 bg-white p-1.5 rounded-xl border border-slate-200/80 shadow-xs text-xs overflow-x-auto">
+          <button
+            onClick={() => setStatusFilter("ALL")}
+            className={`px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap transition-all cursor-pointer ${
+              statusFilter === "ALL"
+                ? "bg-slate-900 text-white"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            All Status ({exams.length})
+          </button>
+          <button
+            onClick={() => setStatusFilter("OPEN")}
+            className={`px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
+              statusFilter === "OPEN"
+                ? "bg-emerald-700 text-white"
+                : "text-emerald-700 hover:bg-emerald-50"
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+            Active (24h)
+          </button>
+          <button
+            onClick={() => setStatusFilter("SCHEDULED")}
+            className={`px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
+              statusFilter === "SCHEDULED"
+                ? "bg-blue-600 text-white"
+                : "text-blue-700 hover:bg-blue-50"
+            }`}
+          >
+            <Calendar className="w-3 h-3" />
+            Scheduled
+          </button>
+          <button
+            onClick={() => setStatusFilter("EXPIRED")}
+            className={`px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
+              statusFilter === "EXPIRED"
+                ? "bg-rose-700 text-white"
+                : "text-rose-700 hover:bg-rose-50"
+            }`}
+          >
+            <Lock className="w-3 h-3" />
+            Closed / Expired
+          </button>
+        </div>
       </div>
 
       {/* Scheduled Exams Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
-        {filteredExams.map((exam) => (
-          <div
-            key={exam.id}
-            className="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs flex flex-col justify-between hover:border-emerald-400 transition-all group"
-          >
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <span
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold truncate ${
-                    exam.section === "PRIMARY"
-                      ? "bg-amber-100 text-amber-900"
-                      : "bg-blue-100 text-blue-900"
-                  }`}
-                >
-                  {exam.section} &bull; {exam.classLevel}
-                </span>
-
-                <span className="flex items-center gap-1 text-xs font-semibold text-slate-500 flex-shrink-0">
-                  <Clock className="w-3.5 h-3.5 text-amber-500" />
-                  {exam.durationMinutes} Mins
-                </span>
-              </div>
-
-              <h3 className="text-base sm:text-lg font-bold text-slate-900 group-hover:text-emerald-900 transition-colors">
-                {exam.title}
-              </h3>
-              <p className="mt-1 text-xs text-slate-500 leading-relaxed line-clamp-2">
-                {exam.description || "Timed assessment with instant auto-grading and answer analysis."}
-              </p>
-
-              <div className="mt-4 grid grid-cols-3 gap-2 py-3 px-3 bg-slate-50 rounded-xl text-center text-xs">
-                <div>
-                  <div className="text-[10px] text-slate-400 font-semibold uppercase">
-                    Subject
-                  </div>
-                  <div className="font-bold text-slate-800 truncate">{exam.subject}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-slate-400 font-semibold uppercase">
-                    Questions
-                  </div>
-                  <div className="font-bold text-slate-800">{exam.questions.length} Items</div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-slate-400 font-semibold uppercase">
-                    Total Marks
-                  </div>
-                  <div className="font-bold text-emerald-700">{exam.totalMarks} pts</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 sm:mt-6 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <span className="text-[11px] text-slate-400">
-                Created by: <strong>{exam.createdBy}</strong>
-              </span>
-
-              <Link
-                href={`/dashboard/exam-portal/${exam.id}/take`}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-xs shadow-md transition-all group-hover:scale-105 min-h-[44px]"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                {role === "STUDENT" ? "Enter Exam Hall" : "Preview / Take Test"}
-              </Link>
-            </div>
+        {filteredExams.length === 0 ? (
+          <div className="col-span-1 md:col-span-2 bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-500 text-xs">
+            No exams match the selected filter criteria.
           </div>
-        ))}
+        ) : (
+          filteredExams.map((exam) => {
+            const avail = getExamAvailability(exam);
+
+            return (
+              <div
+                key={exam.id}
+                className={`bg-white rounded-2xl border p-5 sm:p-6 shadow-xs flex flex-col justify-between transition-all group ${
+                  avail.isExpired
+                    ? "border-slate-200 opacity-90"
+                    : avail.isScheduled
+                    ? "border-blue-200 hover:border-blue-400"
+                    : "border-slate-200/80 hover:border-emerald-400"
+                }`}
+              >
+                <div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold truncate ${
+                          exam.section === "PRIMARY"
+                            ? "bg-amber-100 text-amber-900"
+                            : "bg-blue-100 text-blue-900"
+                        }`}
+                      >
+                        {exam.section} &bull; {exam.classLevel}
+                      </span>
+
+                      {/* 24-Hour Availability / Scheduling Badge */}
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border ${avail.statusBadge.bgClass} ${avail.statusBadge.textClass} ${avail.statusBadge.borderClass}`}
+                      >
+                        {avail.isScheduled ? (
+                          <Calendar className="w-3 h-3 flex-shrink-0" />
+                        ) : avail.isExpired ? (
+                          <Lock className="w-3 h-3 flex-shrink-0" />
+                        ) : (
+                          <Clock className="w-3 h-3 flex-shrink-0" />
+                        )}
+                        <span>{avail.statusBadge.label}</span>
+                      </span>
+                    </div>
+
+                    <span className="flex items-center gap-1 text-xs font-semibold text-slate-500 flex-shrink-0">
+                      <Clock className="w-3.5 h-3.5 text-amber-500" />
+                      {exam.durationMinutes} Mins
+                    </span>
+                  </div>
+
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 group-hover:text-emerald-900 transition-colors">
+                    {exam.title}
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500 leading-relaxed line-clamp-2">
+                    {exam.description || "Timed assessment with instant auto-grading and answer analysis."}
+                  </p>
+
+                  {/* Schedule & 24h Window Details Box */}
+                  <div className="mt-3 bg-slate-50/90 rounded-xl p-2.5 border border-slate-200/70 text-[11px] space-y-1">
+                    <div className="flex items-center justify-between text-slate-600">
+                      <span className="text-slate-400 flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-slate-400" />
+                        Published / Opens:
+                      </span>
+                      <span className="font-semibold text-slate-800">
+                        {formatExamDate(avail.publishDate)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-600">
+                      <span className="text-slate-400 flex items-center gap-1">
+                        <Lock className="w-3 h-3 text-slate-400" />
+                        Access Window (24h):
+                      </span>
+                      <span
+                        className={`font-semibold ${
+                          avail.isExpired ? "text-rose-700" : "text-emerald-800"
+                        }`}
+                      >
+                        {avail.isExpired ? "Closed on " : "Available until "}
+                        {formatExamDate(avail.expiryDate)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-3 gap-2 py-2.5 px-3 bg-slate-50 rounded-xl text-center text-xs">
+                    <div>
+                      <div className="text-[10px] text-slate-400 font-semibold uppercase">
+                        Subject
+                      </div>
+                      <div className="font-bold text-slate-800 truncate">{exam.subject}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-slate-400 font-semibold uppercase">
+                        Questions
+                      </div>
+                      <div className="font-bold text-slate-800">{exam.questions.length} Items</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-slate-400 font-semibold uppercase">
+                        Total Marks
+                      </div>
+                      <div className="font-bold text-emerald-700">{exam.totalMarks} pts</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 sm:mt-6 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <span className="text-[11px] text-slate-400">
+                    Created by: <strong>{exam.createdBy}</strong>
+                  </span>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Teacher Action Controls */}
+                    {isStaff && (
+                      <>
+                        {avail.isScheduled && (
+                          <button
+                            type="button"
+                            onClick={() => handleExamAction(exam.id, "publish_now")}
+                            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
+                            title="Publish immediately and activate 24-hour access window now"
+                          >
+                            <Send className="w-3 h-3" />
+                            <span>Publish Now</span>
+                          </button>
+                        )}
+
+                        {avail.isExpired && (
+                          <button
+                            type="button"
+                            onClick={() => handleExamAction(exam.id, "reopen_24h")}
+                            className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
+                            title="Reopen examination for students for an additional 24 hours"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            <span>Reopen 24h</span>
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => handleExamAction(exam.id, "delete")}
+                          className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                          title="Delete exam"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+
+                    {/* Entry or Preview Button */}
+                    {isStaff ? (
+                      <Link
+                        href={`/dashboard/exam-portal/${exam.id}/take`}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-all"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Preview Exam</span>
+                      </Link>
+                    ) : avail.isScheduled ? (
+                      <button
+                        disabled
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-100 text-blue-900 font-bold text-xs cursor-not-allowed opacity-90"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>Scheduled (Opens {formatExamDate(avail.publishDate)})</span>
+                      </button>
+                    ) : avail.isExpired ? (
+                      <button
+                        disabled
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-200 text-slate-600 font-bold text-xs cursor-not-allowed"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        <span>Exam Closed (24hr Window Ended)</span>
+                      </button>
+                    ) : (
+                      <Link
+                        href={`/dashboard/exam-portal/${exam.id}/take`}
+                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-xs shadow-md transition-all group-hover:scale-105 min-h-[44px]"
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <span>Enter Exam Hall</span>
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
 
       {/* Recent CBT Submissions & Results Table */}
@@ -877,6 +1130,99 @@ export default function ExamPortalPage() {
                       className="w-full text-xs py-2 px-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
+                </div>
+
+                {/* Publishing Schedule & 24-Hour Student Access Window */}
+                <div className="sm:col-span-2 bg-emerald-50/70 border border-emerald-200 rounded-xl p-3.5 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
+                    <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-emerald-700" />
+                      Publishing Schedule &amp; 24-Hour Student Access
+                    </span>
+                    <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100/90 px-2.5 py-0.5 rounded-full flex items-center gap-1 self-start sm:self-auto">
+                      <Clock className="w-3 h-3 text-emerald-700" />
+                      Available for 24 Hours to Students
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-0.5">
+                    <label
+                      onClick={() => setExamForm({ ...examForm, publishScheduleMode: "immediate" })}
+                      className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                        examForm.publishScheduleMode === "immediate"
+                          ? "bg-white border-emerald-600 shadow-xs ring-1 ring-emerald-500"
+                          : "bg-white/70 border-slate-200 hover:bg-white"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="publishScheduleMode"
+                        checked={examForm.publishScheduleMode === "immediate"}
+                        onChange={() => setExamForm({ ...examForm, publishScheduleMode: "immediate" })}
+                        className="mt-0.5 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <div className="text-xs">
+                        <div className="font-bold text-slate-900">Publish Immediately</div>
+                        <div className="text-[11px] text-slate-500 leading-snug mt-0.5">
+                          Opens immediately on saving and remains active for students for exactly 24 hours.
+                        </div>
+                      </div>
+                    </label>
+
+                    <label
+                      onClick={() => setExamForm({ ...examForm, publishScheduleMode: "scheduled" })}
+                      className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                        examForm.publishScheduleMode === "scheduled"
+                          ? "bg-white border-emerald-600 shadow-xs ring-1 ring-emerald-500"
+                          : "bg-white/70 border-slate-200 hover:bg-white"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="publishScheduleMode"
+                        checked={examForm.publishScheduleMode === "scheduled"}
+                        onChange={() => setExamForm({ ...examForm, publishScheduleMode: "scheduled" })}
+                        className="mt-0.5 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <div className="text-xs flex-1">
+                        <div className="font-bold text-slate-900">Schedule for Specific Date &amp; Time</div>
+                        <div className="text-[11px] text-slate-500 leading-snug mt-0.5">
+                          Locks until scheduled time arrives, then automatically opens for 24 hours.
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+
+                  {examForm.publishScheduleMode === "scheduled" && (
+                    <div className="bg-white p-3 rounded-xl border border-emerald-300 space-y-2">
+                      <label className="block text-xs font-bold text-slate-800">
+                        Select Opening Date &amp; Time:
+                      </label>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                        <input
+                          type="datetime-local"
+                          required={examForm.publishScheduleMode === "scheduled"}
+                          value={examForm.scheduledPublishAt}
+                          onChange={(e) =>
+                            setExamForm({ ...examForm, scheduledPublishAt: e.target.value })
+                          }
+                          className="flex-1 text-xs py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 font-medium text-slate-900"
+                        />
+                      </div>
+                      {examForm.scheduledPublishAt && (
+                        <div className="text-[11px] text-emerald-800 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 leading-relaxed">
+                          <strong>Active Period:</strong> Opens on{" "}
+                          <strong>{new Date(examForm.scheduledPublishAt).toLocaleString()}</strong> and closes automatically on{" "}
+                          <strong>
+                            {new Date(
+                              new Date(examForm.scheduledPublishAt).getTime() + 24 * 60 * 60 * 1000
+                            ).toLocaleString()}
+                          </strong>{" "}
+                          (24-hour limit).
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
