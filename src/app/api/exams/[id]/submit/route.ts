@@ -53,9 +53,13 @@ export async function POST(
       );
     }
 
-    const expiryTime = exam.expiresAt
+    const effectivePublishDate = exam.scheduledPublishAt
+      ? new Date(exam.scheduledPublishAt)
+      : new Date(exam.publishedAt || exam.createdAt);
+
+    const expiryTime = exam.expiresAt && new Date(exam.expiresAt).getTime() > effectivePublishDate.getTime()
       ? new Date(exam.expiresAt)
-      : new Date(new Date(exam.publishedAt || exam.createdAt).getTime() + 24 * 60 * 60 * 1000);
+      : new Date(effectivePublishDate.getTime() + 24 * 60 * 60 * 1000);
 
     if (now.getTime() >= expiryTime.getTime()) {
       const closedDateStr = expiryTime.toLocaleString("en-US", {

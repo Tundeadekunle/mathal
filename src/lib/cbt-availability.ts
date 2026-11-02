@@ -66,24 +66,29 @@ export function getExamAvailability(exam: {
   const scheduledDate = exam.scheduledPublishAt ? new Date(exam.scheduledPublishAt) : null;
   const isScheduled = !!scheduledDate && !isNaN(scheduledDate.getTime()) && scheduledDate.getTime() > now.getTime();
 
-  // Publish date: scheduled time if in future/past, or publishedAt, or createdAt, or now
+  // Publish date: scheduled time if set, otherwise publishedAt, createdAt, or now
   let publishDate: Date;
-  if (exam.publishedAt && !isNaN(new Date(exam.publishedAt).getTime())) {
-    publishDate = new Date(exam.publishedAt);
-  } else if (scheduledDate && !isNaN(scheduledDate.getTime())) {
+  if (scheduledDate && !isNaN(scheduledDate.getTime())) {
     publishDate = scheduledDate;
+  } else if (exam.publishedAt && !isNaN(new Date(exam.publishedAt).getTime())) {
+    publishDate = new Date(exam.publishedAt);
   } else if (exam.createdAt && !isNaN(new Date(exam.createdAt).getTime())) {
     publishDate = new Date(exam.createdAt);
   } else {
     publishDate = now;
   }
 
-  // Expiry date: strictly 24 hours after publishDate if expiresAt is not explicitly provided
+  // Expiry date: strictly 24 hours after publishDate/scheduledDate
   let expiryDate: Date;
   if (exam.expiresAt && !isNaN(new Date(exam.expiresAt).getTime())) {
-    expiryDate = new Date(exam.expiresAt);
+    const candidate = new Date(exam.expiresAt);
+    if (candidate.getTime() > publishDate.getTime()) {
+      expiryDate = candidate;
+    } else {
+      expiryDate = new Date(publishDate.getTime() + 24 * 60 * 60 * 1000);
+    }
   } else {
-    // 24 hours from publishDate
+    // 24 hours from publishDate (or scheduledDate)
     expiryDate = new Date(publishDate.getTime() + 24 * 60 * 60 * 1000);
   }
 

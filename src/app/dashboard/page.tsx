@@ -25,13 +25,25 @@ import {
   BookOpen,
 } from "lucide-react";
 
+import {
+  getExamAvailability,
+  formatExamDate,
+  formatRemainingTime,
+} from "@/lib/cbt-availability";
+
 export default function DashboardOverview() {
   const { user } = useAuth();
   const { session, term, sessions, terms, setSession, setTerm } = useAcademic();
   const [students, setStudents] = useState<DemoStudent[]>([]);
-  const [exams, setExams] = useState<DemoCbtExam[]>([]);
+  const [exams, setExams] = useState<DemoCbtExam[]>(() => dataStore.getExams());
 
   useEffect(() => {
+    // Immediate local cache reflection to prevent any blink on reload
+    const cachedExams = dataStore.getExams();
+    if (cachedExams.length > 0) {
+      setExams(cachedExams);
+    }
+
     fetch("/api/students")
       .then((r) => r.json())
       .then((d) => {
@@ -42,7 +54,17 @@ export default function DashboardOverview() {
     fetch("/api/exams")
       .then((r) => r.json())
       .then((d) => {
-        if (d.exams) setExams(d.exams);
+        if (d.exams) {
+          const localStored = dataStore.getExams();
+          const mergedMap = new Map<string, DemoCbtExam>();
+          d.exams.forEach((ex: DemoCbtExam) => mergedMap.set(ex.id, ex));
+          localStored.forEach((ex: DemoCbtExam) => {
+            if (!mergedMap.has(ex.id)) mergedMap.set(ex.id, ex);
+          });
+          const mergedList = Array.from(mergedMap.values());
+          dataStore.saveExams(mergedList);
+          setExams(mergedList);
+        }
       })
       .catch(() => setExams(dataStore.getExams()));
   }, []);
@@ -444,38 +466,95 @@ export default function DashboardOverview() {
 
         {/* Sidebar Status / Active Tests */}
         <div className="space-y-4">
-          <h2 className="text-base font-bold text-slate-800">Active CBT Tests</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold text-slate-800">Active &amp; Scheduled CBT</h2>
+            <Link
+              href="/dashboard/exam-portal"
+              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+            >
+              Open Portal &rarr;
+            </Link>
+          </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 space-y-4 shadow-sm">
-            {exams.map((exam) => (
-              <div
-                key={exam.id}
-                className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-emerald-300 transition-colors"
-              >
-                <div className="flex items-center justify-between text-[11px] font-semibold text-emerald-800 mb-1">
-                  <span className="px-2 py-0.5 rounded bg-emerald-100/70 font-bold">
-                    {exam.section} &bull; {exam.classLevel}
-                  </span>
-                  <span className="flex items-center gap-1 text-slate-500">
-                    <Clock className="w-3 h-3" />
-                    {exam.durationMinutes} mins
-                  </span>
-                </div>
-                <h4 className="font-bold text-slate-800 text-sm">{exam.title}</h4>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-xs text-slate-500">
-                    {exam.questions.length} questions ({exam.totalMarks} marks)
-                  </span>
-                  <Link
-                    href={`/dashboard/exam-portal/${exam.id}/take`}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 hover:text-amber-700"
-                  >
-                    Start Exam
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 space-y-3.5 shadow-sm">
+            {exams.length === 0 ? (
+              <div className="text-center py-6 px-3 text-slate-400 space-y-2">
+                <Clock className="w-8 h-8 mx-auto text-slate-300" />
+                <p className="text-xs font-medium text-slate-500">No CBT tests published yet.</p>
+                <p className="text-[11px] text-slate-400">Scheduled or active tests will appear here.</p>
               </div>
-            ))}
+            ) : (
+              exams
+                .slice()
+                .sort((a, b) => {
+                  const availA = getExamAvailability(a);
+                  const availB = getExamAvailability(b);
+                  const order = { OPEN: 1, SCHEDULED: 2, EXPIRED: 3, INACTIVE: 4 };
+                  return (order[availA.status] || 99) - (order[availB.status] || 99);
+                })
+                .slice(0, 5)
+                .map((exam) => {
+                  const avail = getExamAvailability(exam);
+                  return (
+                    <div
+                      key={exam.id}
+                      className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 hover:border-emerald-300 transition-colors space-y-2"
+                    >
+                      <div className="flex items-center justify-between text-[11px] font-semibold mb-1">
+                        <span className="px-2 py-0.5 rounded bg-emerald-100/70 font-bold text-emerald-800">
+                          {exam.section} &bull; {exam.classLevel}
+                        </span>
+                        <span className="flex items-center gap-1 text-slate-500">
+                          <Clock className="w-3 h-3" />
+                          {exam.durationMinutes} mins
+                        </span>
+                      </div>
+
+                      <h4 className="font-bold text-slate-800 text-sm leading-snug">{exam.title}</h4>
+
+                      {/* Scheduling & Availability Badge */}
+                      <div className="flex items-center justify-between gap-2 pt-0.5">
+                        <span
+                          className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${avail.statusBadge.bgClass} ${avail.statusBadge.textClass} ${avail.statusBadge.borderClass}`}
+                        >
+                          {avail.status === "SCHEDULED"
+                            ? `Scheduled: Opens in ${formatRemainingTime(avail.timeUntilOpenMs)}`
+                            : avail.status === "OPEN"
+                            ? `Available: Closes in ${formatRemainingTime(avail.timeUntilExpiryMs)}`
+                            : "Access Closed"}
+                        </span>
+
+                        {avail.isOpen ? (
+                          <Link
+                            href={`/dashboard/exam-portal/${exam.id}/take`}
+                            className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 hover:text-amber-700 whitespace-nowrap cursor-pointer"
+                          >
+                            <span>Start Exam</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </Link>
+                        ) : avail.isScheduled ? (
+                          <Link
+                            href={`/dashboard/exam-portal/${exam.id}/take`}
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:text-blue-800 whitespace-nowrap cursor-pointer"
+                            title={`Opens ${formatExamDate(avail.publishDate)}`}
+                          >
+                            <span>View Details</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </Link>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 font-medium">Expired</span>
+                        )}
+                      </div>
+
+                      {avail.isScheduled && (
+                        <div className="text-[10px] text-blue-700/80 font-medium">
+                          Opens: {formatExamDate(avail.publishDate)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+            )}
 
             <div className="pt-2 border-t border-slate-100 text-center">
               <Link

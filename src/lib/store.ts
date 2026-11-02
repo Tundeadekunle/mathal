@@ -210,6 +210,27 @@ if (!globalThis.mathalState) {
 
 const state = globalThis.mathalState;
 
+const CBT_EXAMS_STORAGE_KEY = "mathal_cbt_exams";
+
+function loadExamsFromStorage(): DemoCbtExam[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(CBT_EXAMS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return [];
+}
+
+function saveExamsToStorage(exams: DemoCbtExam[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(CBT_EXAMS_STORAGE_KEY, JSON.stringify(exams));
+  } catch {}
+}
+
 export const dataStore = {
   // Sync state with live Neon DB
   syncFromNeon: async () => {
@@ -235,7 +256,16 @@ export const dataStore = {
       }
       if (exRes && exRes.ok) {
         const d = await exRes.json();
-        if (d.exams) state.exams = d.exams;
+        if (d.exams) {
+          const localStored = loadExamsFromStorage();
+          const mergedMap = new Map<string, DemoCbtExam>();
+          d.exams.forEach((e: DemoCbtExam) => mergedMap.set(e.id, e));
+          localStored.forEach((e: DemoCbtExam) => {
+            if (!mergedMap.has(e.id)) mergedMap.set(e.id, e);
+          });
+          state.exams = Array.from(mergedMap.values());
+          saveExamsToStorage(state.exams);
+        }
       }
       state.isSynced = true;
     } catch {
@@ -530,6 +560,12 @@ export const dataStore = {
 
   // CBT Exams
   getExams: (classLevel?: string, section?: string) => {
+    if (state.exams.length === 0 && typeof window !== "undefined") {
+      const stored = loadExamsFromStorage();
+      if (stored.length > 0) {
+        state.exams = stored;
+      }
+    }
     let list = state.exams;
     if (section && section !== "ALL") {
       list = list.filter((e) => e.section === section);
@@ -539,7 +575,19 @@ export const dataStore = {
     }
     return list;
   },
-  getExamById: (id: string) => state.exams.find((e) => e.id === id),
+  getExamById: (id: string) => {
+    if (state.exams.length === 0 && typeof window !== "undefined") {
+      const stored = loadExamsFromStorage();
+      if (stored.length > 0) {
+        state.exams = stored;
+      }
+    }
+    return state.exams.find((e) => e.id === id);
+  },
+  saveExams: (exams: DemoCbtExam[]) => {
+    state.exams = exams;
+    saveExamsToStorage(exams);
+  },
   addExam: async (exam: Omit<DemoCbtExam, "id">) => {
     try {
       const res = await fetch("/api/exams", {
@@ -550,7 +598,8 @@ export const dataStore = {
       if (res.ok) {
         const d = await res.json();
         if (d.exam) {
-          state.exams.unshift(d.exam);
+          state.exams = [d.exam, ...state.exams.filter((x) => x.id !== d.exam.id)];
+          saveExamsToStorage(state.exams);
           return d.exam;
         }
       }
@@ -571,7 +620,8 @@ export const dataStore = {
       expiresAt: expDate.toISOString(),
       createdAt: new Date().toISOString(),
     };
-    state.exams.unshift(newExam);
+    state.exams = [newExam, ...state.exams.filter((x) => x.id !== newExam.id)];
+    saveExamsToStorage(state.exams);
     return newExam;
   },
   submitExam: async (submission: Omit<DemoExamSubmission, "id" | "submittedAt">) => {

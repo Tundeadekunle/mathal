@@ -81,7 +81,7 @@ Answer: B`;
 
 export default function ExamPortalPage() {
   const { user } = useAuth();
-  const [exams, setExams] = useState<DemoCbtExam[]>([]);
+  const [exams, setExams] = useState<DemoCbtExam[]>(() => dataStore.getExams());
   const [submissions, setSubmissions] = useState<ExtendedSubmission[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [sectionFilter, setSectionFilter] = useState<string>("ALL");
@@ -136,12 +136,27 @@ export default function ExamPortalPage() {
   }, []);
 
   const loadData = async () => {
+    // Immediately display whatever is cached locally so there is zero flicker on refresh
+    const initialCached = dataStore.getExams();
+    if (initialCached.length > 0) {
+      setExams(initialCached);
+    }
+
     try {
       const res = await fetch("/api/exams");
       if (res.ok) {
         const d = await res.json();
         if (d.exams) {
-          setExams(d.exams);
+          const localStored = dataStore.getExams();
+          const mergedMap = new Map<string, DemoCbtExam>();
+          d.exams.forEach((ex: DemoCbtExam) => mergedMap.set(ex.id, ex));
+          localStored.forEach((ex: DemoCbtExam) => {
+            if (!mergedMap.has(ex.id)) mergedMap.set(ex.id, ex);
+          });
+          const mergedList = Array.from(mergedMap.values());
+          dataStore.saveExams(mergedList);
+          setExams(mergedList);
+
           const allSubs: ExtendedSubmission[] = [];
           d.exams.forEach((ex: any) => {
             if (ex.submissions) {
@@ -369,6 +384,11 @@ export default function ExamPortalPage() {
       });
 
       if (res.ok) {
+        const d = await res.json();
+        if (d.exam) {
+          dataStore.saveExams([d.exam, ...exams.filter((x) => x.id !== d.exam.id)]);
+          setExams((prev) => [d.exam, ...prev.filter((x) => x.id !== d.exam.id)]);
+        }
         await loadData();
         setShowCreateModal(false);
         // Reset form
@@ -391,10 +411,11 @@ export default function ExamPortalPage() {
       // fallback
     }
 
-    dataStore.addExam({
+    const localExam = await dataStore.addExam({
       ...payload,
       questions: payload.questions.map((q, idx) => ({ ...q, id: `q_${idx + 1}` })),
     });
+    setExams((prev) => [localExam, ...prev.filter((x) => x.id !== localExam.id)]);
     loadData();
     setShowCreateModal(false);
   };
