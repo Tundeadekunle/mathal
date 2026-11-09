@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { computeGrade } from "@/lib/grading";
+import { unpackQuestionOptions } from "@/lib/cbt-options";
 
 export async function POST(
   req: Request,
@@ -148,6 +149,7 @@ export async function POST(
 
     const breakdown = exam.questions.map((q) => {
       totalPossible += q.marks;
+      const unpacked = unpackQuestionOptions(q);
       const answered = (answers[q.id] || answers[String(q.questionNumber)] || "").toString().trim().toUpperCase();
       const isCorrect = answered && answered === q.correctAnswer.toUpperCase();
       const marksAwarded = isCorrect ? q.marks : 0;
@@ -158,11 +160,11 @@ export async function POST(
       return {
         questionId: q.id,
         questionNumber: q.questionNumber,
-        questionText: q.questionText,
-        optionA: q.optionA,
-        optionB: q.optionB,
-        optionC: q.optionC,
-        optionD: q.optionD,
+        questionText: unpacked.questionText,
+        optionA: unpacked.optionA,
+        optionB: unpacked.optionB,
+        optionC: unpacked.optionC,
+        optionD: unpacked.optionD,
         userAnswer: answered || "Unanswered",
         correctAnswer: q.correctAnswer,
         marksPossible: q.marks,

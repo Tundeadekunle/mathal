@@ -34,6 +34,7 @@ import {
   getExamAvailability,
   formatExamDate,
 } from "@/lib/cbt-availability";
+import { unpackQuestionOptions } from "@/lib/cbt-options";
 
 interface ExtendedSubmission extends DemoExamSubmission {
   admissionNo?: string;
@@ -471,15 +472,16 @@ export default function ExamPortalPage() {
       try {
         const answers = JSON.parse(subm.answersJson);
         breakdown = parentExam.questions.map((q) => {
+          const unpacked = unpackQuestionOptions(q);
           const ans = (answers[q.id] || answers[String(q.questionNumber)] || "").toUpperCase();
           const isCorrect = ans && ans === q.correctAnswer.toUpperCase();
           return {
             questionNumber: q.questionNumber,
-            questionText: q.questionText,
-            optionA: q.optionA,
-            optionB: q.optionB,
-            optionC: q.optionC,
-            optionD: q.optionD,
+            questionText: unpacked.questionText,
+            optionA: unpacked.optionA,
+            optionB: unpacked.optionB,
+            optionC: unpacked.optionC,
+            optionD: unpacked.optionD,
             userAnswer: ans || "Unanswered",
             correctAnswer: q.correctAnswer,
             marks: q.marks,

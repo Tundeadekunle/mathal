@@ -1,4 +1,5 @@
 import { solveQuestion, matchOptionValue } from "./cbt-solver";
+import { unpackQuestionOptions } from "./cbt-options";
 
 export interface ParsedQuestion {
   questionNumber: number;
@@ -437,13 +438,21 @@ export function parseExamQuestions(
       qWarnings.push("Question text was empty.");
     }
 
+    const unpacked = unpackQuestionOptions({
+      questionText,
+      optionA: options.A,
+      optionB: options.B,
+      optionC: options.C,
+      optionD: options.D,
+    });
+
     parsedQuestions.push({
       questionNumber: qNumber,
-      questionText,
-      optionA: options.A || "Option A",
-      optionB: options.B || "Option B",
-      optionC: options.C || "Option C",
-      optionD: options.D || "Option D",
+      questionText: unpacked.questionText,
+      optionA: unpacked.optionA || "Option A",
+      optionB: unpacked.optionB || "Option B",
+      optionC: unpacked.optionC || "Option C",
+      optionD: unpacked.optionD || "Option D",
       correctAnswer: detectedAnswer,
       marks: defaultMarksPerQuestion,
       explanation: explanation || undefined,

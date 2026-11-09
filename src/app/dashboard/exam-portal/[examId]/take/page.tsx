@@ -31,6 +31,7 @@ import {
   formatExamDate,
   formatRemainingTime,
 } from "@/lib/cbt-availability";
+import { unpackQuestionOptions } from "@/lib/cbt-options";
 
 interface QuestionReviewItem {
   questionId: string;
@@ -91,7 +92,21 @@ export default function TakeExamPage() {
         if (res.ok) {
           const d = await res.json();
           if (d.exam) {
-            setExam(d.exam);
+            const cleanedExam = {
+              ...d.exam,
+              questions: (d.exam.questions || []).map((q: any) => {
+                const unpacked = unpackQuestionOptions(q);
+                return {
+                  ...q,
+                  questionText: unpacked.questionText,
+                  optionA: unpacked.optionA,
+                  optionB: unpacked.optionB,
+                  optionC: unpacked.optionC,
+                  optionD: unpacked.optionD,
+                };
+              }),
+            };
+            setExam(cleanedExam);
             setTimeLeftSeconds(d.exam.durationMinutes * 60);
 
             // Check if current user has an existing submission for this exam
@@ -107,7 +122,7 @@ export default function TakeExamPage() {
                 try {
                   const savedAnswers = existingSub.answersJson ? JSON.parse(existingSub.answersJson) : {};
                   const gradeInfo = computeGrade(existingSub.percentage);
-                  const breakdown: QuestionReviewItem[] = d.exam.questions.map((q: any) => {
+                  const breakdown: QuestionReviewItem[] = cleanedExam.questions.map((q: any) => {
                     const ans = (savedAnswers[q.id] || savedAnswers[String(q.questionNumber)] || "").toUpperCase();
                     const isCorrect = ans && ans === q.correctAnswer.toUpperCase();
                     return {
@@ -201,6 +216,7 @@ export default function TakeExamPage() {
     // Calculate score locally as fallback
     let localScore = 0;
     const localBreakdown: QuestionReviewItem[] = exam.questions.map((q) => {
+      const unpacked = unpackQuestionOptions(q);
       const ans = (answers[q.id] || answers[String(q.questionNumber)] || "").toUpperCase();
       const isCorrect = ans && ans === q.correctAnswer.toUpperCase();
       const marksAwarded = isCorrect ? q.marks : 0;
@@ -209,11 +225,11 @@ export default function TakeExamPage() {
       return {
         questionId: q.id,
         questionNumber: q.questionNumber,
-        questionText: q.questionText,
-        optionA: q.optionA,
-        optionB: q.optionB,
-        optionC: q.optionC,
-        optionD: q.optionD,
+        questionText: unpacked.questionText,
+        optionA: unpacked.optionA,
+        optionB: unpacked.optionB,
+        optionC: unpacked.optionC,
+        optionD: unpacked.optionD,
         userAnswer: ans || "Unanswered",
         correctAnswer: q.correctAnswer,
         marksPossible: q.marks,
@@ -545,6 +561,30 @@ export default function TakeExamPage() {
                     </div>
                   </div>
 
+                  {/* All 4 Options listed clearly */}
+                  <div className="mt-2 pt-2 border-t border-slate-200/60 grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px]">
+                    {(["A", "B", "C", "D"] as const).map((opt) => {
+                      const optText = qItem[`option${opt}` as keyof typeof qItem];
+                      const isChosen = qItem.userAnswer === opt;
+                      const isRight = qItem.correctAnswer === opt;
+                      return (
+                        <div
+                          key={opt}
+                          className={`px-2 py-1 rounded-md flex items-start gap-1.5 ${
+                            isRight
+                              ? "bg-emerald-100/90 text-emerald-950 font-semibold border border-emerald-300"
+                              : isChosen
+                              ? "bg-rose-100/90 text-rose-950 font-semibold border border-rose-300"
+                              : "text-slate-600 bg-white/60 border border-slate-100"
+                          }`}
+                        >
+                          <span className="font-bold">{opt}.</span>
+                          <span>{String(optText || "")}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
                   {qItem.explanation && (
                     <div className="mt-2 text-[11px] text-slate-500 bg-white/70 p-2 rounded-lg border border-slate-200">
                       <strong>Note:</strong> {qItem.explanation}
@@ -815,42 +855,49 @@ export default function TakeExamPage() {
               </span>
             </div>
 
-            {/* Question Text */}
-            <h3 className="text-sm sm:text-lg font-semibold text-slate-900 leading-relaxed mb-5 sm:mb-6">
-              {currentQ.questionText}
-            </h3>
+            {/* Question Text & Options */}
+            {(() => {
+              const activeUnpacked = unpackQuestionOptions(currentQ);
+              return (
+                <>
+                  <h3 className="text-sm sm:text-lg font-semibold text-slate-900 leading-relaxed mb-5 sm:mb-6">
+                    {activeUnpacked.questionText}
+                  </h3>
 
-            {/* Options List */}
-            <div className="space-y-2.5 sm:space-y-3">
-              {(["A", "B", "C", "D"] as const).map((optKey) => {
-                const optText = currentQ[`option${optKey}` as keyof typeof currentQ];
-                const isSelected = answers[currentQ.id] === optKey;
+                  {/* Options List */}
+                  <div className="space-y-2.5 sm:space-y-3">
+                    {(["A", "B", "C", "D"] as const).map((optKey) => {
+                      const optText = activeUnpacked[`option${optKey}` as keyof typeof activeUnpacked];
+                      const isSelected = answers[currentQ.id] === optKey;
 
-                return (
-                  <button
-                    key={optKey}
-                    type="button"
-                    onClick={() => handleSelectOption(currentQ.id, optKey)}
-                    className={`w-full text-left p-3.5 sm:p-4 rounded-xl border transition-all flex items-center gap-3 cursor-pointer min-h-[50px] ${
-                      isSelected
-                        ? "bg-emerald-50 border-emerald-500 text-emerald-950 font-bold shadow-xs"
-                        : "bg-slate-50/70 border-slate-200 hover:bg-slate-100/70 text-slate-800"
-                    }`}
-                  >
-                    <div
-                      className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black transition-colors flex-shrink-0 ${
-                        isSelected
-                          ? "bg-emerald-700 text-white"
-                          : "bg-white border border-slate-300 text-slate-600"
-                      }`}
-                    >
-                      {optKey}
-                    </div>
-                    <span className="text-xs sm:text-sm">{optText}</span>
-                  </button>
-                );
-              })}
-            </div>
+                      return (
+                        <button
+                          key={optKey}
+                          type="button"
+                          onClick={() => handleSelectOption(currentQ.id, optKey)}
+                          className={`w-full text-left p-3.5 sm:p-4 rounded-xl border transition-all flex items-center gap-3 cursor-pointer min-h-[50px] ${
+                            isSelected
+                              ? "bg-emerald-50 border-emerald-500 text-emerald-950 font-bold shadow-xs"
+                              : "bg-slate-50/70 border-slate-200 hover:bg-slate-100/70 text-slate-800"
+                          }`}
+                        >
+                          <div
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black transition-colors flex-shrink-0 ${
+                              isSelected
+                                ? "bg-emerald-700 text-white"
+                                : "bg-white border border-slate-300 text-slate-600"
+                            }`}
+                          >
+                            {optKey}
+                          </div>
+                          <span className="text-xs sm:text-sm font-medium leading-relaxed">{optText}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              );
+            })()}
 
             {/* Navigation & Submit Controls */}
             <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-slate-100 flex items-center justify-between gap-2">
